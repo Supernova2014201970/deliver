@@ -1,0 +1,13 @@
+diff --git a/Magick++/fuzz/utils.cc b/Magick++/fuzz/utils.cc
+index e8e22bcd1..ba6d97f14 100644
+--- a/Magick++/fuzz/utils.cc
++++ b/Magick++/fuzz/utils.cc
+@@ -6,6 +6,8 @@ public:
+   FuzzingLimits() {
+     Magick::SecurityPolicy::maxMemoryRequest(256000000);
+     Magick::ResourceLimits::memory(1000000000);
++    Magick::ResourceLimits::width(2048);
++    Magick::ResourceLimits::height(2048);
+   }
+ };
+ 

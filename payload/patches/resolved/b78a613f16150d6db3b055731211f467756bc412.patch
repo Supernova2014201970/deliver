@@ -1,0 +1,13 @@
+diff --git a/MagickCore/draw.c b/MagickCore/draw.c
+index 68dbb747a..b7f1a3f35 100644
+--- a/MagickCore/draw.c
++++ b/MagickCore/draw.c
+@@ -1770,7 +1770,7 @@ MagickExport MagickBooleanType DrawImage(Image *image,const DrawInfo *draw_info,
+       ThrowBinaryException(ResourceLimitError,"MemoryAllocationFailed",
+         image->filename);
+     }
+-  number_points=6553;
++  number_points=8192;
+   primitive_info=(PrimitiveInfo *) AcquireQuantumMemory((size_t) number_points,
+     sizeof(*primitive_info));
+   if (primitive_info == (PrimitiveInfo *) NULL)

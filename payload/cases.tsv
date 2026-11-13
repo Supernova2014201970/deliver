@@ -1,0 +1,81 @@
+# localId	coder	target	sanitizer	expect_frame	expect_kind	poc	patch	patch_status	after_expect	fix_commit
+# coder is the ImageMagick coder name handed to the reproducer at run time
+#       (/out/hand-<profile>-<tree>/repro <coder> <poc>)
+# target is the OSS-Fuzz target ARVO recorded for the case (informational only; this
+#       delivery ships no fuzz targets)
+# expect_kind is a fragment of the crash_type recorded by ARVO;
+# after_expect is no-crash for every case: each one runs clean on the fixed tree
+# patch is this case's single fix patch, relative to /payload (patches/<commit>.patch or
+#       patches/resolved/<commit>.patch); scripts/verify-one.sh applies exactly that one
+#       patch on top of vuln and expects the PoC to run clean
+# patch_status is upstream (upstream commit applies verbatim) or resolved (adapted by hand)
+# fix_commit is the upstream commit that fixes the case; all 62 of them are also applied
+#       together in image/refs/combined.patch, which is what the fixed node is built from
+42518038	G3	encoder_g3_fuzzer	undefined	HuffmanEncodeImage	Index-out-of-bounds	pocs/42518038/poc	patches/resolved/e8be814f1c3d267012d2f612b3366bfb5029414d.patch	resolved	no-crash	e8be814f1c3d267012d2f612b3366bfb5029414d
+42518438	CIN	encoder_cin_fuzzer	address	ImportQuantumPixels	Heap-buffer-overflow READ 1	pocs/42518438/poc	patches/9998cd719775e90f9989fd1ecaa84647a56c1b57.patch	upstream	no-crash	9998cd719775e90f9989fd1ecaa84647a56c1b57
+42518471	MIFF	encoder_miff_fuzzer	memory	GetXMPProperty	Use-of-uninitialized-value	pocs/42518471/poc	patches/af223b025da2ffb56a4e50160448e845f9b5e186.patch	upstream	no-crash	af223b025da2ffb56a4e50160448e845f9b5e186
+42518560	TXT	encoder_txt_fuzzer	memory	QueueAuthenticPixelCacheNexus	Use-of-uninitialized-value	pocs/42518560/poc	patches/169a3ff38425613b156015c23056c4adf0dbf221.patch	upstream	no-crash	169a3ff38425613b156015c23056c4adf0dbf221
+42518649	PALM	encoder_palm_fuzzer	memory	IsFuzzyEquivalencePixelInfo	Use-of-uninitialized-value	pocs/42518649/poc	patches/resolved/e8be814f1c3d267012d2f612b3366bfb5029414d.patch	resolved	no-crash	e8be814f1c3d267012d2f612b3366bfb5029414d
+42518894	WPG	encoder_wpg_fuzzer	memory	WritePixelCacheRegion	Use-of-uninitialized-value	pocs/42518894/poc	patches/resolved/e8be814f1c3d267012d2f612b3366bfb5029414d.patch	resolved	no-crash	e8be814f1c3d267012d2f612b3366bfb5029414d
+42519182	SUN	encoder_sun_fuzzer	address	SetGrayscaleImage	Heap-buffer-overflow WRITE 8	pocs/42519182/poc	patches/bb4e7e8919573caf70bd5af3330e991ddbad0c92.patch	upstream	no-crash	bb4e7e8919573caf70bd5af3330e991ddbad0c92
+42519338	WPG	encoder_wpg_fuzzer	memory	ConstrainColormapIndex	Use-of-uninitialized-value	pocs/42519338/poc	patches/resolved/e8be814f1c3d267012d2f612b3366bfb5029414d.patch	resolved	no-crash	e8be814f1c3d267012d2f612b3366bfb5029414d
+42519416	SIXEL	encoder_sixel_fuzzer	address	ResetMagickMemory	Heap-buffer-overflow WRITE {*}	pocs/42519416/poc	patches/614d7b140cd03a0d38f76ae55a7fcb2c9d76012a.patch	upstream	no-crash	614d7b140cd03a0d38f76ae55a7fcb2c9d76012a
+42519504	EPSI	encoder_epsi_fuzzer	address	ParseEntities	Heap-buffer-overflow READ 1	pocs/42519504/poc	patches/1f55115e43f7276a6d91bd4408dd4a6ef45d6be5.patch	upstream	no-crash	1f55115e43f7276a6d91bd4408dd4a6ef45d6be5
+42519749	SIX	encoder_six_fuzzer	address	sixel_decode	UNKNOWN WRITE	pocs/42519749/poc	patches/8e5432bdc67c377c620f5d8d3dedfb62854f567c.patch	upstream	no-crash	8e5432bdc67c377c620f5d8d3dedfb62854f567c
+42519760	PES	encoder_pes_fuzzer	address	ReadPESImage	Stack-buffer-overflow WRITE 8	pocs/42519760/poc	patches/3c8e8dbc5f8f617fa902cffaa90368beb96fd8a4.patch	upstream	no-crash	3c8e8dbc5f8f617fa902cffaa90368beb96fd8a4
+42519771	TIM	encoder_tim_fuzzer	memory	PushColormapIndex	Use-of-uninitialized-value	pocs/42519771/poc	patches/resolved/e8be814f1c3d267012d2f612b3366bfb5029414d.patch	resolved	no-crash	e8be814f1c3d267012d2f612b3366bfb5029414d
+42519915	MIFF	encoder_miff_fuzzer	memory	LocaleNCompare	Use-of-uninitialized-value	pocs/42519915/poc	patches/008465f1b8eb05752f8482e9cc2a073f0e978f09.patch	upstream	no-crash	008465f1b8eb05752f8482e9cc2a073f0e978f09
+42520316	EPS	encoder_eps_fuzzer	address	ParseInternalDoctype	Heap-buffer-overflow READ 1	pocs/42520316/poc	patches/3b30dbea8817d45471ec132014a3bc44e05fdf97.patch	upstream	no-crash	3b30dbea8817d45471ec132014a3bc44e05fdf97
+42520493	DXT5	encoder_dxt5_fuzzer	address	SetPixelRed	Heap-buffer-overflow WRITE 4	pocs/42520493/poc	patches/147814adf1c657f647ee7e73027dbedde5ac2467.patch	upstream	no-crash	147814adf1c657f647ee7e73027dbedde5ac2467
+42520871	EPS	encoder_eps_fuzzer	memory	ParseEntities	Use-of-uninitialized-value	pocs/42520871/poc	patches/resolved/82c58c138e2ffc1f170db711b07627ee621c2a22.patch	resolved	no-crash	82c58c138e2ffc1f170db711b07627ee621c2a22
+42520948	DCM	encoder_dcm_fuzzer	memory	IsPixelGray	Use-of-uninitialized-value	pocs/42520948/poc	patches/4435dbb1f398e3bf4ab1c1f8905d42b7701a7cca.patch	upstream	no-crash	4435dbb1f398e3bf4ab1c1f8905d42b7701a7cca
+42520971	PDB	encoder_pdb_fuzzer	memory	ReadPDBImage	Use-of-uninitialized-value	pocs/42520971/poc	patches/487f950075ae21b4634a04cb28c2f47f95d62963.patch	upstream	no-crash	487f950075ae21b4634a04cb28c2f47f95d62963
+42521159	TXT	encoder_txt_fuzzer	memory	ScaleQuantumToChar	Use-of-uninitialized-value	pocs/42521159/poc	patches/resolved/0897510362611886bfe296f8ab5d9aa1f82558cf.patch	resolved	no-crash	0897510362611886bfe296f8ab5d9aa1f82558cf
+42521170	WPG	encoder_wpg_fuzzer	memory	SetPixelViaPixelInfo	Use-of-uninitialized-value	pocs/42521170/poc	patches/02eee091d2023d91d15d271ac9e6fe049a6e4c5f.patch	upstream	no-crash	02eee091d2023d91d15d271ac9e6fe049a6e4c5f
+42521270	PCX	encoder_pcx_fuzzer	memory	IsPixelMonochrome	Use-of-uninitialized-value	pocs/42521270/poc	patches/a5136e6c737e76e613da9241d7ecb273d84787d0.patch	upstream	no-crash	a5136e6c737e76e613da9241d7ecb273d84787d0
+42521591	MVG	encoder_mvg_fuzzer	address	GetNextToken	Stack-buffer-overflow WRITE 1	pocs/42521591/poc	patches/c9a75ec387eb3c1f3c9584b97260d72512868b1b.patch	upstream	no-crash	c9a75ec387eb3c1f3c9584b97260d72512868b1b
+42521846	PICT	encoder_pict_fuzzer	memory	ConstrainColormapIndex	Use-of-uninitialized-value	pocs/42521846/poc	patches/21baa90e1854413d109512c3cda5242511e5a14a.patch	upstream	no-crash	21baa90e1854413d109512c3cda5242511e5a14a
+42521858	PALM	encoder_palm_fuzzer	memory	IsFuzzyEquivalencePixelInfo	Use-of-uninitialized-value	pocs/42521858/poc	patches/ecd8728428d460b13821cc8e80aef671011329c7.patch	upstream	no-crash	ecd8728428d460b13821cc8e80aef671011329c7
+42521880	VIFF	encoder_viff_fuzzer	memory	ScaleQuantumToChar	Use-of-uninitialized-value	pocs/42521880/poc	patches/resolved/391d3afd588b94f9ee2c5e4a70f5e9197e5afb21.patch	resolved	no-crash	391d3afd588b94f9ee2c5e4a70f5e9197e5afb21
+42522269	WBMP	encoder_wbmp_fuzzer	memory	ReadWBMPImage	Use-of-uninitialized-value	pocs/42522269/poc	patches/21e1ac88739dbf99be45782de0dc299b162fcdf5.patch	upstream	no-crash	21e1ac88739dbf99be45782de0dc299b162fcdf5
+42522303	WPG	encoder_wpg_fuzzer	memory	SetPixelViaPixelInfo	Use-of-uninitialized-value	pocs/42522303/poc	patches/ce433f8048b120b2a0413b4ac3ef59fca35a9788.patch	upstream	no-crash	ce433f8048b120b2a0413b4ac3ef59fca35a9788
+42522513	MVG	encoder_mvg_fuzzer	memory	GetFillAlpha	Use-of-uninitialized-value	pocs/42522513/poc	patches/8bb46b3381f8440fbf90bd88e1909dc83e089790.patch	upstream	no-crash	8bb46b3381f8440fbf90bd88e1909dc83e089790
+42522869	PALM	encoder_palm_fuzzer	memory	ScaleQuantumToChar	Use-of-uninitialized-value	pocs/42522869/poc	patches/73c6cc1f8da1d7f3647056f293c5a10da019c9b7.patch	upstream	no-crash	73c6cc1f8da1d7f3647056f293c5a10da019c9b7
+42523358	PNM	encoder_pnm_fuzzer	memory	IsPixelEquivalent	Use-of-uninitialized-value	pocs/42523358/poc	patches/23246df8dfdebe0002bf9abfa0a5490238300ad9.patch	upstream	no-crash	23246df8dfdebe0002bf9abfa0a5490238300ad9
+42523502	VIFF	encoder_viff_fuzzer	memory	PushColormapIndex	Use-of-uninitialized-value	pocs/42523502/poc	patches/60cb93d03a9fec83087f803fab877293f1ca12fd.patch	upstream	no-crash	60cb93d03a9fec83087f803fab877293f1ca12fd
+42523812	DPX	encoder_dpx_fuzzer	memory	ScaleQuantumToShort	Use-of-uninitialized-value	pocs/42523812/poc	patches/9e74769caca25bc62707772ef15de9a510609bf2.patch	upstream	no-crash	9e74769caca25bc62707772ef15de9a510609bf2
+42523868	MAT	encoder_mat_fuzzer	memory	IsPixelGray	Use-of-uninitialized-value	pocs/42523868/poc	patches/79ef217ff11ad37e45946bb17ab1d4f3311066c7.patch	upstream	no-crash	79ef217ff11ad37e45946bb17ab1d4f3311066c7
+42523879	PSD	encoder_psd_fuzzer	address	CopyMagickMemory	Negative-size-param	pocs/42523879/poc	patches/6f7924965f38eeaa43901d6c7b3d7a9157ccd1e1.patch	upstream	no-crash	6f7924965f38eeaa43901d6c7b3d7a9157ccd1e1
+42524289	MVG	encoder_mvg_fuzzer	address	TracePoint	Heap-buffer-overflow WRITE 8	pocs/42524289/poc	patches/2ebcbdbaee0a9bdfa0f11f9b47774668537ea709.patch	upstream	no-crash	2ebcbdbaee0a9bdfa0f11f9b47774668537ea709
+42524701	XCF	encoder_xcf_fuzzer	memory	ClampPixel	Use-of-uninitialized-value	pocs/42524701/poc	patches/4fc95b7c4291ec9216929c525cc3e6ed55b39149.patch	upstream	no-crash	4fc95b7c4291ec9216929c525cc3e6ed55b39149
+42525613	PSD	encoder_psd_fuzzer	memory	ScaleQuantumToShort	Use-of-uninitialized-value	pocs/42525613/poc	patches/resolved/79de802e7586ab4339b7b81e3d3501d5fcffd57a.patch	resolved	no-crash	79de802e7586ab4339b7b81e3d3501d5fcffd57a
+42525647	MIFF	encoder_miff_fuzzer	memory	GetEXIFProperty	Use-of-uninitialized-value	pocs/42525647/poc	patches/resolved/78eaf41a792bb35a8b9e7ac4f72d86a8cb7d6d0a.patch	resolved	no-crash	78eaf41a792bb35a8b9e7ac4f72d86a8cb7d6d0a
+42525669	MIFF	encoder_miff_fuzzer	memory	LocaleNCompare	Use-of-uninitialized-value	pocs/42525669/poc	patches/resolved/78eaf41a792bb35a8b9e7ac4f72d86a8cb7d6d0a.patch	resolved	no-crash	78eaf41a792bb35a8b9e7ac4f72d86a8cb7d6d0a
+42525880	HDR	encoder_hdr_fuzzer	address	WriteBlob	Stack-buffer-overflow READ {*}	pocs/42525880/poc	patches/07e656c7089f3b3ae30a71a042fb903c83e077b6.patch	upstream	no-crash	07e656c7089f3b3ae30a71a042fb903c83e077b6
+42526335	GIF	encoder_gif_fuzzer	memory	Sync8BimProfile	Use-of-uninitialized-value	pocs/42526335/poc	patches/6d4a20030385c8e42f7a3fa89c84556b5fc896d7.patch	upstream	no-crash	6d4a20030385c8e42f7a3fa89c84556b5fc896d7
+42526424	EPSI	encoder_epsi_fuzzer	address	ParseInternalDoctype	Heap-buffer-overflow READ 1	pocs/42526424/poc	patches/5f68b29b843b3c57f61b34e1db8f3144af458614.patch	upstream	no-crash	5f68b29b843b3c57f61b34e1db8f3144af458614
+42526757	PS	encoder_ps_fuzzer	address	NewXMLTree	Heap-buffer-overflow READ 1	pocs/42526757/poc	patches/resolved/ba9e36555434ebe9da38a1341cfd9f304a326348.patch	resolved	no-crash	ba9e36555434ebe9da38a1341cfd9f304a326348
+42527322	PICT	encoder_pict_fuzzer	memory	ScaleQuantumToChar	Use-of-uninitialized-value	pocs/42527322/poc	patches/resolved/820e6361927e3bfa346ce085311d001681863a23.patch	resolved	no-crash	820e6361927e3bfa346ce085311d001681863a23
+42527699	GIF	encoder_gif_fuzzer	memory	Sync8BimProfile	Use-of-uninitialized-value	pocs/42527699/poc	patches/resolved/7a98246a075d55f2eb5bad40028a28f3cfdd97c1.patch	resolved	no-crash	7a98246a075d55f2eb5bad40028a28f3cfdd97c1
+42527789	MIFF	encoder_miff_fuzzer	address	QueryColorCompliance	Stack-buffer-overflow READ 1	pocs/42527789/poc	patches/ff0cea4290cb1421cb174f2f26ca03789377a6fb.patch	upstream	no-crash	ff0cea4290cb1421cb174f2f26ca03789377a6fb
+42528177	MIFF	encoder_miff_fuzzer	memory	QueryColorCompliance	Use-of-uninitialized-value	pocs/42528177/poc	patches/resolved/557cb22f90e3543cca8414a1dfa074e0e026e4c3.patch	resolved	no-crash	557cb22f90e3543cca8414a1dfa074e0e026e4c3
+42528200	PCX	encoder_pcx_fuzzer	memory	ScaleQuantumToChar	Use-of-uninitialized-value	pocs/42528200/poc	patches/fda26c312b8d99e0cfaa82233741946c1206de81.patch	upstream	no-crash	fda26c312b8d99e0cfaa82233741946c1206de81
+42528610	SUN	encoder_sun_fuzzer	memory	ScaleQuantumToChar	Use-of-uninitialized-value	pocs/42528610/poc	patches/5960b92b652b51cc53852e7ba3c9b65abceb0452.patch	upstream	no-crash	5960b92b652b51cc53852e7ba3c9b65abceb0452
+42529799	MIFF	encoder_miff_fuzzer	memory	WriteMIFFImage	Use-of-uninitialized-value	pocs/42529799/poc	patches/56a19e7ae07f40299f3afd4994d690f2c9b81993.patch	upstream	no-crash	56a19e7ae07f40299f3afd4994d690f2c9b81993
+42530943	MVG	encoder_mvg_fuzzer	address	TracePoint	Heap-buffer-overflow WRITE 8	pocs/42530943/poc	patches/resolved/b78a613f16150d6db3b055731211f467756bc412.patch	resolved	no-crash	b78a613f16150d6db3b055731211f467756bc412
+42530977	HDR	encoder_hdr_fuzzer	memory	ReadHDRImage	Use-of-uninitialized-value	pocs/42530977/poc	patches/resolved/686c45509c81d3ecae9cdb34225689b3be97de55.patch	resolved	no-crash	686c45509c81d3ecae9cdb34225689b3be97de55
+42531054	MIFF	encoder_miff_fuzzer	memory	WriteMIFFImage	Use-of-uninitialized-value	pocs/42531054/poc	patches/bf04de5d0e66f630dd0c184b478a299854f2d032.patch	upstream	no-crash	bf04de5d0e66f630dd0c184b478a299854f2d032
+42531466	DCM	encoder_dcm_fuzzer	address	ReadDCMImage	Heap-buffer-overflow READ 4	pocs/42531466/poc	patches/e79350c54735fd1051bd0b153ef277a13a7b9618.patch	upstream	no-crash	e79350c54735fd1051bd0b153ef277a13a7b9618
+42532777	SCR	encoder_scr_fuzzer	memory	ReadSCRImage	Use-of-uninitialized-value	pocs/42532777/poc	patches/164af31c8d4d5afd0a5a6a7e27078b5d579adc56.patch	upstream	no-crash	164af31c8d4d5afd0a5a6a7e27078b5d579adc56
+42533154	VIFF	encoder_viff_fuzzer	memory	ReadVIFFImage	Use-of-uninitialized-value	pocs/42533154/poc	patches/60cb93d03a9fec83087f803fab877293f1ca12fd.patch	upstream	no-crash	60cb93d03a9fec83087f803fab877293f1ca12fd
+42533821	MIFF	encoder_miff_fuzzer	memory	ScaleQuantumToChar	Use-of-uninitialized-value	pocs/42533821/poc	patches/resolved/11c7f47df7cbe2e672c8a975aa1c003d92f4fdc9.patch	resolved	no-crash	11c7f47df7cbe2e672c8a975aa1c003d92f4fdc9
+42533954	PCDS	encoder_pcds_fuzzer	memory	ClampPixel	Use-of-uninitialized-value	pocs/42533954/poc	patches/2cf74b529c34f2e5915c946e2f4a06f4c292f4c8.patch	upstream	no-crash	2cf74b529c34f2e5915c946e2f4a06f4c292f4c8
+42533966	MAC	encoder_mac_fuzzer	memory	PushColormapIndex	Use-of-uninitialized-value	pocs/42533966/poc	patches/990431dbe7688861ad46a7b8d6cb9d173b429cbd.patch	upstream	no-crash	990431dbe7688861ad46a7b8d6cb9d173b429cbd
+42534188	WPG	encoder_wpg_fuzzer	memory	ConstrainColormapIndex	Use-of-uninitialized-value	pocs/42534188/poc	patches/a85ab26099152be3dab0bd377670abfc815b9fe7.patch	upstream	no-crash	a85ab26099152be3dab0bd377670abfc815b9fe7
+42534522	TIM	encoder_tim_fuzzer	memory	PushColormapIndex	Use-of-uninitialized-value	pocs/42534522/poc	patches/resolved/f472c0ae74c136284adbbcfe25f628be2da8a02b.patch	resolved	no-crash	f472c0ae74c136284adbbcfe25f628be2da8a02b
+42534621	PDB	encoder_pdb_fuzzer	memory	PushColormapIndex	Use-of-uninitialized-value	pocs/42534621/poc	patches/0100b8013536d7836566642d69d521fba1d15cf6.patch	upstream	no-crash	0100b8013536d7836566642d69d521fba1d15cf6
+42534921	MVG	encoder_mvg_fuzzer	address	DrawDashPolygon	Heap-buffer-overflow WRITE {*}	pocs/42534921/poc	patches/7a03766efc1f45cf13cbd435902d86c3f321368e.patch	upstream	no-crash	7a03766efc1f45cf13cbd435902d86c3f321368e
+42535088	MVG	encoder_mvg_fuzzer	address	DrawDashPolygon	Heap-buffer-overflow WRITE 4	pocs/42535088/poc	patches/resolved/3c96caf391336735dd15331267694d52a6d3ecd1.patch	resolved	no-crash	3c96caf391336735dd15331267694d52a6d3ecd1
+42535232	RLE	encoder_rle_fuzzer	memory	ConstantString	Use-of-uninitialized-value	pocs/42535232/poc	patches/73aad72d1d28170b38014168f523d0ee2941c21e.patch	upstream	no-crash	73aad72d1d28170b38014168f523d0ee2941c21e
+42535688	PDB	encoder_pdb_fuzzer	memory	WritePDBImage	Use-of-uninitialized-value	pocs/42535688/poc	patches/resolved/771e54d106ce5ff043e7812b4182f3c08a748001.patch	resolved	no-crash	771e54d106ce5ff043e7812b4182f3c08a748001
+42537011	MVG	encoder_mvg_fuzzer	address	DrawDashPolygon	Heap-buffer-overflow WRITE {*}	pocs/42537011/poc	patches/resolved/8239e79ee4c8cc34034838eefe4f34bab02c5fc7.patch	resolved	no-crash	8239e79ee4c8cc34034838eefe4f34bab02c5fc7

@@ -1,0 +1,5 @@
+tree	imagemagick-fixed
+upstream	13ffeabe9abd6c262a8b6bfaeb1e145a420f8e3a
+commit	7940a980a4888c83a9cf552ef6cd419a7fce3221
+tree_sha	e3f5892044af808ef8eb3472d775d8b450f58628
+date	2018-03-20

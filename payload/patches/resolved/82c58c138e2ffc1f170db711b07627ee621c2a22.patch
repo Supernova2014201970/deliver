@@ -1,0 +1,13 @@
+diff --git a/MagickCore/xml-tree.c b/MagickCore/xml-tree.c
+index d3123e82e..28c0de421 100644
+--- a/MagickCore/xml-tree.c
++++ b/MagickCore/xml-tree.c
+@@ -1494,6 +1494,8 @@ static char *ParseEntities(char *xml,char **entities,int state)
+                           sizeof(*extent_xml));
+                         if (extent_xml != (char *) NULL)
+                           {
++                            ResetMagickMemory(extent_xml,0,extent*
++                              sizeof(*extent_xml));
+                             (void) CopyMagickString(extent_xml,p,extent*
+                               sizeof(*extent_xml));
+                             p= extent_xml;

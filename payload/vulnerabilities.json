@@ -1,0 +1,4660 @@
+{
+  "project": "imagemagick",
+  "repo": "https://github.com/imagemagick/imagemagick",
+  "generated_from": [
+    "results/cases.csv",
+    "results/round1/*.json",
+    "results/vuln-inventory.json",
+    "patches/index.json",
+    "patches/apply-check.json"
+  ],
+  "commits": {
+    "scheme": "B — 合成节点：vuln = 基线 + 环境前提，fixed = vuln + 62 个修复补丁（补丁全部随包发布）",
+    "patch_files": "payload/patches/：45 个上游原样补丁 + 17 个手工适配补丁（resolved/）",
+    "vulnerable": {
+      "tag": "vuln",
+      "commit": "cac8ee0ead0871909046c560a2b0e7b2ac9bb19c",
+      "describe": "7.0.7-21-83-gcac8ee0",
+      "tree": "a2e675ea85b01a951d0463c1994f2b2d475a54c6",
+      "base_commit": "13ffeabe9abd6c262a8b6bfaeb1e145a420f8e3a",
+      "base_version": "7.0.7-21-82-g13ffeab",
+      "base_date": "2018-01-16",
+      "message": "baseline 7.0.7-21-82-g13ffeab + ResetImagePixels prerequisite",
+      "prerequisite": "image/refs/prereq-reset-image-pixels.patch",
+      "note": "合成提交：上游 13ffeab 加上 ResetImagePixels 环境前提（19 个修复补丁依赖该函数）。68 个 PoC 在此节点全部崩溃"
+    },
+    "fixed": {
+      "tag": "fixed",
+      "commit": "7940a980a4888c83a9cf552ef6cd419a7fce3221",
+      "describe": "7.0.7-21-84-g7940a98",
+      "tree": "e3f5892044af808ef8eb3472d775d8b450f58628",
+      "parent": "cac8ee0ead0871909046c560a2b0e7b2ac9bb19c",
+      "message": "apply all 62 ImageMagick fixes for the ARVO cases",
+      "patch": "image/refs/combined.patch",
+      "fix_commits": 62,
+      "files_changed": 38,
+      "lines": "+310 / -134",
+      "note": "合成提交：在 vuln 上 git apply --3way 62 个修复补丁的并集，与 vuln 只差这 62 个补丁。68 个 PoC 在此节点全部不再崩溃：27 条解码成功、5 条被 width/height(2048) 上限拦下（该上限本身就是补丁 e8be814f）、36 条被补丁新增的解析校验提前拒绝"
+    }
+  },
+  "vulnerabilities": [
+    {
+      "id": "42519749",
+      "format": "SIX",
+      "fuzz_target": "encoder_six_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "UNKNOWN WRITE",
+        "cwe": "CWE-787",
+        "cwe_name": "Out-of-bounds Write"
+      },
+      "location": {
+        "file": "coders/sixel.c",
+        "line": 462,
+        "function": "sixel_decode",
+        "stack": [
+          "sixel_decode",
+          "ReadSIXELImage",
+          "ReadImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/sixel.c",
+        "function": "sixel_decode",
+        "line": 462,
+        "before": "            if (n > 0) {",
+        "after": "            if ((n > 0) && (param[0] > 1)) {",
+        "diff": "@@ -377,7 +377,7 @@ MagickBooleanType sixel_decode(unsigned char              /* in */  *p,\n             /* DECGRI Graphics Repeat Introducer ! Pn Ch */\n             p = get_params(++p, param, &n);\n \n-            if (n > 0) {\n+            if ((n > 0) && (param[0] > 1)) {\n                 repeat_count = param[0];\n             }\n "
+      },
+      "description": "`coders/sixel.c:462`（`sixel_decode`）：SIX 的 DECGRI 重复指令不管 Pn 取值都把 param[0] 写进 repeat_count，Pn 为 0 时 `imsx < posision_x+repeat_count` 的扩容判断少算一列，随后写 `imbuf[imsx*(posision_y+i)+posision_x]` 越过缓冲区末尾（ASan UNKNOWN WRITE）；修复只在 `param[0] > 1` 时才更新 repeat_count。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "8e5432bdc67c377c620f5d8d3dedfb62854f567c",
+        "upstream_date": "2018-01-19",
+        "file": "patches/8e5432bdc67c377c620f5d8d3dedfb62854f567c.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/sixel.c",
+            "functions": [
+              "sixel_decode"
+            ],
+            "hunks": [
+              {
+                "old_start": 377,
+                "old_lines": 7,
+                "new_start": 377,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 1
+      },
+      "fix_summary": "sixel_decode：增加边界或长度校验（+1/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42519182",
+      "format": "SUN",
+      "fuzz_target": "encoder_sun_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Heap-buffer-overflow WRITE 8",
+        "cwe": "CWE-787",
+        "cwe_name": "Out-of-bounds Write"
+      },
+      "location": {
+        "file": "MagickCore/quantize.c",
+        "line": 3411,
+        "function": "SetGrayscaleImage",
+        "stack": [
+          "SetGrayscaleImage",
+          "QuantizeImage",
+          "SetImageType"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/quantize.c",
+        "function": "SetGrayscaleImage",
+        "line": 3411,
+        "before": "  colormap_index=(ssize_t *) AcquireQuantumMemory(MaxColormapSize,\n    sizeof(*colormap_index));",
+        "after": "  if (image->storage_class == PseudoClass)\n    colormap_index=(ssize_t *) AcquireQuantumMemory(image->colors,\n      sizeof(*colormap_index));\n  else\n    colormap_index=(ssize_t *) AcquireQuantumMemory(MaxColormapSize,\n      sizeof(*colormap_index));",
+        "diff": "@@ -3318,8 +3318,12 @@ static MagickBooleanType SetGrayscaleImage(Image *image,\n   assert(image->signature == MagickCoreSignature);\n   if (image->type != GrayscaleType)\n     (void) TransformImageColorspace(image,GRAYColorspace,exception);\n-  colormap_index=(ssize_t *) AcquireQuantumMemory(MaxColormapSize,\n-    sizeof(*colormap_index));\n+  if (image->storage_class == PseudoClass)\n+    colormap_index=(ssize_t *) AcquireQuantumMemory(image->colors,\n+      sizeof(*colormap_index));\n+  else\n+    colormap_index=(ssize_t *) AcquireQuantumMemory(MaxColormapSize,\n+      sizeof(*colormap_index));\n   if (colormap_index == (ssize_t *) NULL)\n     ThrowBinaryException(ResourceLimitError,\"MemoryAllocationFailed\",\n       image->filename);"
+      },
+      "description": "`MagickCore/quantize.c:3411`（`SetGrayscaleImage`）：colormap_index 一律按 MaxColormapSize(65536) 分配，而伪彩图的 image->colors 可以更大，`colormap_index[(ssize_t) image->colormap[i].alpha]=j` 按下标写入时越过 65536 项数组（heap-buffer-overflow WRITE 8）；修复对 PseudoClass 按 image->colors 分配，其余仍用 MaxColormapSize。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "bb4e7e8919573caf70bd5af3330e991ddbad0c92",
+        "upstream_date": "2018-01-20",
+        "file": "patches/bb4e7e8919573caf70bd5af3330e991ddbad0c92.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "MagickCore/quantize.c",
+            "functions": [
+              "SetGrayscaleImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 3318,
+                "old_lines": 8,
+                "new_start": 3318,
+                "new_lines": 12
+              }
+            ]
+          }
+        ],
+        "lines_added": 6,
+        "lines_removed": 2
+      },
+      "fix_summary": "SetGrayscaleImage：增加边界或长度校验（+6/-2 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42519504",
+      "format": "EPSI",
+      "fuzz_target": "encoder_epsi_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Heap-buffer-overflow READ 1",
+        "cwe": "CWE-125",
+        "cwe_name": "Out-of-bounds Read"
+      },
+      "location": {
+        "file": "MagickCore/xml-tree.c",
+        "line": 1525,
+        "function": "ParseEntities",
+        "stack": [
+          "ParseEntities",
+          "ParseInternalDoctype",
+          "NewXMLTree"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/xml-tree.c",
+        "function": "ParseEntities",
+        "line": 1525,
+        "before": "                      p=(char *) ResizeQuantumMemory(p,extent,sizeof(*p));\n                        extent_xml=(char *) AcquireQuantumMemory(extent,\n                          {\n                            (void) CopyMagickString(extent_xml,p,extent*\n                              sizeof(*extent_xml));\n                            p= extent_xml;\n                          }",
+        "after": "                      p=(char *) ResizeQuantumMemory(p,extent+1,sizeof(*p));\n                        extent_xml=(char *) AcquireQuantumMemory(extent+1,\n                          (void) CopyMagickString(extent_xml,p,extent*\n                            sizeof(*extent_xml));\n                        p=extent_xml;\n                    p[extent]='\\0';",
+        "diff": "@@ -1484,24 +1484,23 @@ static char *ParseEntities(char *xml,char **entities,int state)\n                     offset=(ssize_t) (xml-p);\n                     extent=(size_t) (offset+length+strlen(entity));\n                     if (p != q)\n-                      p=(char *) ResizeQuantumMemory(p,extent,sizeof(*p));\n+                      p=(char *) ResizeQuantumMemory(p,extent+1,sizeof(*p));\n                     else\n                       {\n                         char\n                           *extent_xml;\n \n-                        extent_xml=(char *) AcquireQuantumMemory(extent,\n+                        extent_xml=(char *) AcquireQuantumMemory(extent+1,\n                           sizeof(*extent_xml));\n                         if (extent_xml != (char *) NULL)\n-                          {\n-                            (void) CopyMagickString(extent_xml,p,extent*\n-                              sizeof(*extent_xml));\n-                            p= extent_xml;\n-                          }\n+                          (void) CopyMagickString(extent_xml,p,extent*\n+                            sizeof(*extent_xml));\n+                        p=extent_xml;\n                       }\n                     if (p == (char *) NULL)\n                       ThrowFatalException(ResourceLimitFatalError,\n                         \"MemoryAllocationFailed\");\n+                    p[extent]='\\0';\n                     xml=p+offset;\n                     entity=strchr(xml,';');\n                   }"
+      },
+      "description": "`MagickCore/xml-tree.c:1525`（`ParseEntities`）：展开实体时按 extent 字节分配缓冲并复制，算出的长度没有给结尾 NUL 留空间，后续仍按 C 字符串读取就跨过缓冲区（heap-buffer-overflow READ 1）；修复改为按 extent+1 分配并显式写 `p[extent]='\\0'`，同时把 extent_xml 的赋值移出“分配成功”分支，避免分配失败时沿用旧指针。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "1f55115e43f7276a6d91bd4408dd4a6ef45d6be5",
+        "upstream_date": "2018-01-20",
+        "file": "patches/1f55115e43f7276a6d91bd4408dd4a6ef45d6be5.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "MagickCore/xml-tree.c",
+            "functions": [
+              "ParseEntities"
+            ],
+            "hunks": [
+              {
+                "old_start": 1484,
+                "old_lines": 24,
+                "new_start": 1484,
+                "new_lines": 23
+              }
+            ]
+          }
+        ],
+        "lines_added": 7,
+        "lines_removed": 7
+      },
+      "fix_summary": "ParseEntities：增加边界或长度校验（+7/-7 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "decode failed, unchanged"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42519760",
+      "format": "PES",
+      "fuzz_target": "encoder_pes_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Stack-buffer-overflow WRITE 8",
+        "cwe": "CWE-121",
+        "cwe_name": "Stack-based Buffer Overflow"
+      },
+      "location": {
+        "file": "coders/pes.c",
+        "line": 624,
+        "function": "ReadPESImage",
+        "stack": [
+          "ReadPESImage",
+          "ReadImage",
+          "BlobToImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/pes.c",
+        "function": "ReadPESImage",
+        "line": 624,
+        "before": "        if (j >= 256)\n            ThrowReaderException(ResourceLimitError,\"MemoryAllocationFailed\");",
+        "after": "        if (j >= 255)\n            ThrowReaderException(ResourceLimitError,\"CorruptImage\");",
+        "diff": "@@ -547,10 +547,10 @@ static Image *ReadPESImage(const ImageInfo *image_info,ExceptionInfo *exception)\n         */\n         j++;\n         blocks[j].offset=(ssize_t) i;\n-        if (j >= 256)\n+        if (j >= 255)\n           {\n             stitches=(PointInfo *) RelinquishMagickMemory(stitches);\n-            ThrowReaderException(ResourceLimitError,\"MemoryAllocationFailed\");\n+            ThrowReaderException(ResourceLimitError,\"CorruptImage\");\n           }\n         (void) ReadBlobByte(image);\n         continue;"
+      },
+      "description": "`coders/pes.c:624`（`ReadPESImage`）：拼接块计数先 `j++` 再写 `blocks[j]`，而 blocks 只有 256 项，原来的上限判断 `j >= 256` 在 j 已等于 256 时来不及拦住，`blocks[256]` 写到栈数组之外（stack-buffer-overflow WRITE 8）；修复把上限收到 255 并改用 CorruptImage 报错。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "3c8e8dbc5f8f617fa902cffaa90368beb96fd8a4",
+        "upstream_date": "2018-01-20",
+        "file": "patches/3c8e8dbc5f8f617fa902cffaa90368beb96fd8a4.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/pes.c",
+            "functions": [
+              "ReadPESImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 547,
+                "old_lines": 10,
+                "new_start": 547,
+                "new_lines": 10
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 2
+      },
+      "fix_summary": "ReadPESImage：增加边界或长度校验（+2/-2 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42520493",
+      "format": "DXT5",
+      "fuzz_target": "encoder_dxt5_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Heap-buffer-overflow WRITE 4",
+        "cwe": "CWE-787",
+        "cwe_name": "Out-of-bounds Write"
+      },
+      "location": {
+        "file": "./MagickCore/pixel-accessor.h",
+        "line": 844,
+        "function": "SetPixelRed",
+        "stack": [
+          "SetPixelRed",
+          "ReadDXT3Pixels",
+          "ReadDXT3"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/dds.c",
+        "function": "ReadDXT3Pixels",
+        "line": 2113,
+        "before": "          if ((x + i) < (ssize_t) image->rows && (y + j) < (ssize_t) image->columns)",
+        "after": "          if ((x + i) < (ssize_t) image->columns && (y + j) < (ssize_t) image->rows)",
+        "diff": "@@ -2113,7 +2113,7 @@ static MagickBooleanType ReadDXT3Pixels(Image *image,\n       {\n         for (i = 0; i < 4; i++)\n         {\n-          if ((x + i) < (ssize_t) image->rows && (y + j) < (ssize_t) image->columns)\n+          if ((x + i) < (ssize_t) image->columns && (y + j) < (ssize_t) image->rows)\n             {\n               code = (bits >> ((4*j+i)*2)) & 0x3;\n               SetPixelRed(image,ScaleCharToQuantum(colors.r[code]),q);"
+      },
+      "description": "`coders/dds.c:2113`（`ReadDXT3Pixels`）：DXT3 解块的边界判断把行与列写反（x 比 image->rows、y 比 image->columns），宽高不相等时会写到像素缓存之外（heap-buffer-overflow WRITE 4，崩溃点内联在 pixel-accessor.h 的 SetPixelRed）；修复改为 x 对 image->columns、y 对 image->rows。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "147814adf1c657f647ee7e73027dbedde5ac2467",
+        "upstream_date": "2018-01-21",
+        "file": "patches/147814adf1c657f647ee7e73027dbedde5ac2467.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/dds.c",
+            "functions": [
+              "ReadDXT3Pixels"
+            ],
+            "hunks": [
+              {
+                "old_start": 2113,
+                "old_lines": 7,
+                "new_start": 2113,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 1
+      },
+      "fix_summary": "ReadDXT3Pixels：增加边界或长度校验（+1/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42518038",
+      "format": "G3",
+      "fuzz_target": "encoder_g3_fuzzer",
+      "sanitizer": "ubsan",
+      "type": {
+        "crash_type": "Index-out-of-bounds",
+        "cwe": "CWE-129",
+        "cwe_name": "Improper Validation of Array Index"
+      },
+      "location": {
+        "file": "MagickCore/compress.c",
+        "line": 835,
+        "function": "HuffmanEncodeImage",
+        "stack": [
+          "HuffmanEncodeImage",
+          "WriteFAXImage",
+          "WriteImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "Magick++/fuzz/utils.cc",
+        "function": null,
+        "line": 6,
+        "before": "",
+        "after": "    Magick::ResourceLimits::width(2048);\n    Magick::ResourceLimits::height(2048);",
+        "diff": "@@ -6,6 +6,8 @@ public:\n   FuzzingLimits() {\n     Magick::SecurityPolicy::maxMemoryRequest(256000000);\n     Magick::ResourceLimits::memory(1000000000);\n+    Magick::ResourceLimits::width(2048);\n+    Magick::ResourceLimits::height(2048);\n   }\n };\n "
+      },
+      "description": "`MagickCore/compress.c:835`（`HuffmanEncodeImage`）：G3 编码路径上由未受限的图像尺寸导致数组索引越界；上游没有改库代码，只在 `Magick++/fuzz/utils.cc` 的 FuzzingLimits 里把 image width/height 限制为 2048 像素，超限输入在读取阶段即失败，不再进入编码器。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "e8be814f1c3d267012d2f612b3366bfb5029414d",
+        "upstream_date": "2018-01-22",
+        "file": "patches/resolved/e8be814f1c3d267012d2f612b3366bfb5029414d.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "Magick++/fuzz/utils.cc",
+            "functions": [],
+            "hunks": [
+              {
+                "old_start": 6,
+                "old_lines": 6,
+                "new_start": 6,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 0
+      },
+      "fix_summary": "Magick++/fuzz/utils.cc：在 fuzz harness 设置资源上限（+2/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42518649",
+      "format": "PALM",
+      "fuzz_target": "encoder_palm_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/pixel.c",
+        "line": 6132,
+        "function": "IsFuzzyEquivalencePixelInfo",
+        "stack": [
+          "IsFuzzyEquivalencePixelInfo",
+          "TransparentPaintImage",
+          "ReadPALMImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "Magick++/fuzz/utils.cc",
+        "function": null,
+        "line": 6,
+        "before": "",
+        "after": "    Magick::ResourceLimits::width(2048);\n    Magick::ResourceLimits::height(2048);",
+        "diff": "@@ -6,6 +6,8 @@ public:\n   FuzzingLimits() {\n     Magick::SecurityPolicy::maxMemoryRequest(256000000);\n     Magick::ResourceLimits::memory(1000000000);\n+    Magick::ResourceLimits::width(2048);\n+    Magick::ResourceLimits::height(2048);\n   }\n };\n "
+      },
+      "description": "`MagickCore/pixel.c:6132`（`IsFuzzyEquivalencePixelInfo`）：PALM 输入走到该比较函数时读到了未初始化的像素值；上游没有改库代码，只在 `Magick++/fuzz/utils.cc` 的 FuzzingLimits 里把 image width/height 限制为 2048 像素，超限输入在读取阶段即失败。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "e8be814f1c3d267012d2f612b3366bfb5029414d",
+        "upstream_date": "2018-01-22",
+        "file": "patches/resolved/e8be814f1c3d267012d2f612b3366bfb5029414d.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "Magick++/fuzz/utils.cc",
+            "functions": [],
+            "hunks": [
+              {
+                "old_start": 6,
+                "old_lines": 6,
+                "new_start": 6,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 0
+      },
+      "fix_summary": "Magick++/fuzz/utils.cc：在 fuzz harness 设置资源上限（+2/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42518894",
+      "format": "WPG",
+      "fuzz_target": "encoder_wpg_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/cache.c",
+        "line": 3368,
+        "function": "WritePixelCacheRegion",
+        "stack": [
+          "WritePixelCacheRegion",
+          "WritePixelCachePixels",
+          "ClonePixelCacheRepository"
+        ]
+      },
+      "code_snippet": {
+        "file": "Magick++/fuzz/utils.cc",
+        "function": null,
+        "line": 6,
+        "before": "",
+        "after": "    Magick::ResourceLimits::width(2048);\n    Magick::ResourceLimits::height(2048);",
+        "diff": "@@ -6,6 +6,8 @@ public:\n   FuzzingLimits() {\n     Magick::SecurityPolicy::maxMemoryRequest(256000000);\n     Magick::ResourceLimits::memory(1000000000);\n+    Magick::ResourceLimits::width(2048);\n+    Magick::ResourceLimits::height(2048);\n   }\n };\n "
+      },
+      "description": "`MagickCore/cache.c:3368`（`WritePixelCacheRegion`）：WPG 编码时把未初始化的像素区域写出；上游没有改库代码，只在 `Magick++/fuzz/utils.cc` 的 FuzzingLimits 里把 image width/height 限制为 2048 像素，超限输入在读取阶段即失败。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "e8be814f1c3d267012d2f612b3366bfb5029414d",
+        "upstream_date": "2018-01-22",
+        "file": "patches/resolved/e8be814f1c3d267012d2f612b3366bfb5029414d.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "Magick++/fuzz/utils.cc",
+            "functions": [],
+            "hunks": [
+              {
+                "old_start": 6,
+                "old_lines": 6,
+                "new_start": 6,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 0
+      },
+      "fix_summary": "Magick++/fuzz/utils.cc：在 fuzz harness 设置资源上限（+2/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42519338",
+      "format": "WPG",
+      "fuzz_target": "encoder_wpg_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/colormap-private.h",
+        "line": 32,
+        "function": "ConstrainColormapIndex",
+        "stack": [
+          "ConstrainColormapIndex",
+          "InsertRow",
+          "UnpackWPGRaster"
+        ]
+      },
+      "code_snippet": {
+        "file": "Magick++/fuzz/utils.cc",
+        "function": null,
+        "line": 6,
+        "before": "",
+        "after": "    Magick::ResourceLimits::width(2048);\n    Magick::ResourceLimits::height(2048);",
+        "diff": "@@ -6,6 +6,8 @@ public:\n   FuzzingLimits() {\n     Magick::SecurityPolicy::maxMemoryRequest(256000000);\n     Magick::ResourceLimits::memory(1000000000);\n+    Magick::ResourceLimits::width(2048);\n+    Magick::ResourceLimits::height(2048);\n   }\n };\n "
+      },
+      "description": "`./MagickCore/colormap-private.h:32`（`ConstrainColormapIndex`）：WPG 解码用未初始化的调色板索引走到该内联函数；上游没有改库代码，只在 `Magick++/fuzz/utils.cc` 的 FuzzingLimits 里把 image width/height 限制为 2048 像素，超限输入在读取阶段即失败。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "e8be814f1c3d267012d2f612b3366bfb5029414d",
+        "upstream_date": "2018-01-22",
+        "file": "patches/resolved/e8be814f1c3d267012d2f612b3366bfb5029414d.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "Magick++/fuzz/utils.cc",
+            "functions": [],
+            "hunks": [
+              {
+                "old_start": 6,
+                "old_lines": 6,
+                "new_start": 6,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 0
+      },
+      "fix_summary": "Magick++/fuzz/utils.cc：在 fuzz harness 设置资源上限（+2/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42519771",
+      "format": "TIM",
+      "fuzz_target": "encoder_tim_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/image.c",
+        "line": 3700,
+        "function": "PushColormapIndex",
+        "stack": [
+          "PushColormapIndex",
+          "SyncImage",
+          "ReadTIMImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "Magick++/fuzz/utils.cc",
+        "function": null,
+        "line": 6,
+        "before": "",
+        "after": "    Magick::ResourceLimits::width(2048);\n    Magick::ResourceLimits::height(2048);",
+        "diff": "@@ -6,6 +6,8 @@ public:\n   FuzzingLimits() {\n     Magick::SecurityPolicy::maxMemoryRequest(256000000);\n     Magick::ResourceLimits::memory(1000000000);\n+    Magick::ResourceLimits::width(2048);\n+    Magick::ResourceLimits::height(2048);\n   }\n };\n "
+      },
+      "description": "`MagickCore/image.c:3700`（`PushColormapIndex`）：TIM 解码把未初始化的索引交给了像素写入；上游没有改库代码，只在 `Magick++/fuzz/utils.cc` 的 FuzzingLimits 里把 image width/height 限制为 2048 像素，超限输入在读取阶段即失败。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "e8be814f1c3d267012d2f612b3366bfb5029414d",
+        "upstream_date": "2018-01-22",
+        "file": "patches/resolved/e8be814f1c3d267012d2f612b3366bfb5029414d.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "Magick++/fuzz/utils.cc",
+            "functions": [],
+            "hunks": [
+              {
+                "old_start": 6,
+                "old_lines": 6,
+                "new_start": 6,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 0
+      },
+      "fix_summary": "Magick++/fuzz/utils.cc：在 fuzz harness 设置资源上限（+2/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42520871",
+      "format": "EPS",
+      "fuzz_target": "encoder_eps_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/xml-tree.c",
+        "line": 1506,
+        "function": "ParseEntities",
+        "stack": [
+          "ParseEntities",
+          "ParseCharacterContent",
+          "NewXMLTree"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/xml-tree.c",
+        "function": "ParseEntities",
+        "line": 1506,
+        "before": "",
+        "after": "                            ResetMagickMemory(extent_xml,0,extent*\n                              sizeof(*extent_xml));",
+        "diff": "@@ -1494,6 +1494,8 @@ static char *ParseEntities(char *xml,char **entities,int state)\n                           sizeof(*extent_xml));\n                         if (extent_xml != (char *) NULL)\n                           {\n+                            ResetMagickMemory(extent_xml,0,extent*\n+                              sizeof(*extent_xml));\n                             (void) CopyMagickString(extent_xml,p,extent*\n                               sizeof(*extent_xml));\n                             p= extent_xml;"
+      },
+      "description": "`MagickCore/xml-tree.c:1506`（`ParseEntities`）：extent_xml 分配后直接 CopyMagickString 复制，未清零的尾部字节在实体展开后被当作字符串读取（MSan 未初始化值）；修复在复制前 `ResetMagickMemory(extent_xml,0,extent*sizeof(*extent_xml))`。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "82c58c138e2ffc1f170db711b07627ee621c2a22",
+        "upstream_date": "2018-01-22",
+        "file": "patches/resolved/82c58c138e2ffc1f170db711b07627ee621c2a22.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "MagickCore/xml-tree.c",
+            "functions": [
+              "ParseEntities"
+            ],
+            "hunks": [
+              {
+                "old_start": 1494,
+                "old_lines": 6,
+                "new_start": 1494,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 0
+      },
+      "fix_summary": "ParseEntities：补齐缓冲区初始化/清零（+2/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "decode failed, unchanged"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42519416",
+      "format": "SIXEL",
+      "fuzz_target": "encoder_sixel_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Heap-buffer-overflow WRITE {*}",
+        "cwe": "CWE-787",
+        "cwe_name": "Out-of-bounds Write"
+      },
+      "location": {
+        "file": "MagickCore/memory.c",
+        "line": 1156,
+        "function": "ResetMagickMemory",
+        "stack": [
+          "__asan_memset",
+          "ResetMagickMemory",
+          "sixel_decode"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/sixel.c",
+        "function": "sixel_decode",
+        "line": 489,
+        "before": "                                (void) ResetMagickMemory(imbuf + (size_t) imsx * y + posision_x, color_index, repeat_count);",
+        "after": "                                offset=(size_t) imsx * y + posision_x;\n                                if (offset + repeat_count >= (size_t) imsx * imsy)\n                                  {\n                                    imbuf = (unsigned char *) RelinquishMagickMemory(imbuf);\n                                    return (MagickFalse);\n                                  }\n                                (void) ResetMagickMemory(imbuf + offset, color_index, repeat_count);",
+        "diff": "@@ -482,7 +489,13 @@ MagickBooleanType sixel_decode(unsigned char              /* in */  *p,\n                                 c <<= 1;\n                             }\n                             for (y = posision_y + i; y < posision_y + i + n; ++y) {\n-                                (void) ResetMagickMemory(imbuf + (size_t) imsx * y + posision_x, color_index, repeat_count);\n+                                offset=(size_t) imsx * y + posision_x;\n+                                if (offset + repeat_count >= (size_t) imsx * imsy)\n+                                  {\n+                                    imbuf = (unsigned char *) RelinquishMagickMemory(imbuf);\n+                                    return (MagickFalse);\n+                                  }\n+                                (void) ResetMagickMemory(imbuf + offset, color_index, repeat_count);\n                             }\n                             if (max_x < (posision_x + repeat_count - 1)) {\n                                 max_x = posision_x + repeat_count - 1;"
+      },
+      "description": "`coders/sixel.c:489`（`sixel_decode`）：DECGRI 重复绘制时对每行执行 `ResetMagickMemory(imbuf + imsx*y + posision_x, color_index, repeat_count)`，写入起点与长度都没有和 imsx*imsy 的容量核对，越界写破坏了堆（ASan 在 ResetMagickMemory:1156 报 UNKNOWN WRITE）；修复先算出 offset，`offset+repeat_count` 超容量时释放 imbuf 并返回 MagickFalse。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "614d7b140cd03a0d38f76ae55a7fcb2c9d76012a",
+        "upstream_date": "2018-01-23",
+        "file": "patches/614d7b140cd03a0d38f76ae55a7fcb2c9d76012a.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/sixel.c",
+            "functions": [
+              "sixel_decode"
+            ],
+            "hunks": [
+              {
+                "old_start": 245,
+                "old_lines": 6,
+                "new_start": 245,
+                "new_lines": 7
+              },
+              {
+                "old_start": 459,
+                "old_lines": 7,
+                "new_start": 460,
+                "new_lines": 13
+              },
+              {
+                "old_start": 482,
+                "old_lines": 7,
+                "new_start": 489,
+                "new_lines": 13
+              }
+            ]
+          }
+        ],
+        "lines_added": 15,
+        "lines_removed": 2
+      },
+      "fix_summary": "sixel_decode：增加边界或长度校验（+15/-2 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42520948",
+      "format": "DCM",
+      "fuzz_target": "encoder_dcm_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/pixel-accessor.h",
+        "line": 522,
+        "function": "IsPixelGray",
+        "stack": [
+          "IsPixelGray",
+          "IdentifyImageGray",
+          "SetImageGray"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/dcm.c",
+        "function": "ReadDCMImage",
+        "line": 3927,
+        "before": "",
+        "after": "    (void) SetImageBackgroundColor(image,exception);",
+        "diff": "@@ -3927,6 +3927,7 @@ static Image *ReadDCMImage(const ImageInfo *image_info,ExceptionInfo *exception)\n     if (status == MagickFalse)\n       break;\n     image->colorspace=RGBColorspace;\n+    (void) SetImageBackgroundColor(image,exception);\n     if ((image->colormap == (PixelInfo *) NULL) &&\n         (info.samples_per_pixel == 1))\n       {"
+      },
+      "description": "`coders/dcm.c:3927`（`ReadDCMImage`）：设定 RGB 色彩空间后直接按 colormap 写像素，未被解码覆盖的像素保持未初始化值（MSan 在 IsPixelGray 处报错）；修复在解析像素前调用 SetImageBackgroundColor 预填背景。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "4435dbb1f398e3bf4ab1c1f8905d42b7701a7cca",
+        "upstream_date": "2018-01-23",
+        "file": "patches/4435dbb1f398e3bf4ab1c1f8905d42b7701a7cca.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/dcm.c",
+            "functions": [
+              "ReadDCMImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 3927,
+                "old_lines": 6,
+                "new_start": 3927,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadDCMImage：补齐缓冲区初始化/清零（+1/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42520971",
+      "format": "PDB",
+      "fuzz_target": "encoder_pdb_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "coders/pdb.c",
+        "line": 349,
+        "function": "ReadPDBImage",
+        "stack": [
+          "ReadPDBImage",
+          "ReadImage",
+          "BlobToImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/pdb.c",
+        "function": "ReadPDBImage",
+        "line": 349,
+        "before": "",
+        "after": "  (void) ResetMagickMemory(&pdb_info,0,sizeof(pdb_info));",
+        "diff": "@@ -330,6 +330,7 @@ static Image *ReadPDBImage(const ImageInfo *image_info,ExceptionInfo *exception)\n   /*\n     Determine if this a PDB image file.\n   */\n+  (void) ResetMagickMemory(&pdb_info,0,sizeof(pdb_info));\n   count=ReadBlob(image,sizeof(pdb_info.name),(unsigned char *) pdb_info.name);\n   if (count != sizeof(pdb_info.name))\n     ThrowReaderException(CorruptImageError,\"ImproperImageHeader\");"
+      },
+      "description": "`coders/pdb.c:349`（`ReadPDBImage`）：局部 pdb_info 未清零就按字段从文件读取，文件长度不足时残留字段保持未初始化值并被后续使用（MSan 未初始化值）；修复在读之前 `ResetMagickMemory(&pdb_info,0,sizeof(pdb_info))`。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "487f950075ae21b4634a04cb28c2f47f95d62963",
+        "upstream_date": "2018-01-23",
+        "file": "patches/487f950075ae21b4634a04cb28c2f47f95d62963.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/pdb.c",
+            "functions": [
+              "ReadPDBImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 330,
+                "old_lines": 6,
+                "new_start": 330,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadPDBImage：补齐缓冲区初始化/清零（+1/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42521159",
+      "format": "TXT",
+      "fuzz_target": "encoder_txt_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/quantum.h",
+        "line": 116,
+        "function": "ScaleQuantumToChar",
+        "stack": [
+          "ScaleQuantumToChar",
+          "ConcatentateHexColorComponent",
+          "GetColorTuple"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/txt.c",
+        "function": "ReadTXTImage",
+        "line": 464,
+        "before": "    (void) SetImageBackgroundColor(image,exception);",
+        "after": "    (void) SetImageBackgroundColor(image,exception);",
+        "diff": "@@ -464,8 +464,8 @@ static Image *ReadTXTImage(const ImageInfo *image_info,ExceptionInfo *exception)\n     type=ParseCommandOption(MagickColorspaceOptions,MagickFalse,colorspace);\n     if (type < 0)\n       ThrowReaderException(CorruptImageError,\"ImproperImageHeader\");\n-    (void) SetImageBackgroundColor(image,exception);\n     (void) SetImageColorspace(image,(ColorspaceType) type,exception);\n+    (void) SetImageBackgroundColor(image,exception);\n     GetPixelInfo(image,&pixel);\n     range=GetQuantumRange(image->depth);\n     for (y=0; y < (ssize_t) image->rows; y++)"
+      },
+      "description": "`coders/txt.c:464`（`ReadTXTImage`）：先 SetImageBackgroundColor 再 SetImageColorspace，背景像素是按旧色彩空间填的，切换后部分通道没有有效值（MSan 在 ScaleQuantumToChar 处报错）；修复把 SetImageColorspace 提到 SetImageBackgroundColor 之前。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "0897510362611886bfe296f8ab5d9aa1f82558cf",
+        "upstream_date": "2018-01-23",
+        "file": "patches/resolved/0897510362611886bfe296f8ab5d9aa1f82558cf.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "coders/txt.c",
+            "functions": [
+              "ReadTXTImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 464,
+                "old_lines": 8,
+                "new_start": 464,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 1
+      },
+      "fix_summary": "ReadTXTImage：补齐缓冲区初始化/清零（+1/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42521170",
+      "format": "WPG",
+      "fuzz_target": "encoder_wpg_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/pixel-accessor.h",
+        "line": 783,
+        "function": "SetPixelViaPixelInfo",
+        "stack": [
+          "SetPixelViaPixelInfo",
+          "InsertRow",
+          "ReadWPGImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/wpg.c",
+        "function": "ReadWPGImage",
+        "line": 1391,
+        "before": "                      (void) ReadBlob(image,ldblk,BImgBuff);",
+        "after": "                      ssize_t\n                        count;\n\n                      count=ReadBlob(image,(size_t) ldblk,BImgBuff);\n                      if (count != ldblk)\n                        break;",
+        "diff": "@@ -1391,7 +1391,12 @@ static Image *ReadWPGImage(const ImageInfo *image_info,\n \n                     for (i=0; i< (ssize_t) image->rows; i++)\n                     {\n-                      (void) ReadBlob(image,ldblk,BImgBuff);\n+                      ssize_t\n+                        count;\n+\n+                      count=ReadBlob(image,(size_t) ldblk,BImgBuff);\n+                      if (count != ldblk)\n+                        break;\n                       if (InsertRow(image,BImgBuff,i,bpp,exception) == MagickFalse)\n                         {\n                           if(BImgBuff)"
+      },
+      "description": "`coders/wpg.c:1391`（`ReadWPGImage`）：`ReadBlob(image,ldblk,BImgBuff)` 的返回值被丢弃，文件提前结束时行缓冲只填了一部分，InsertRow 把未初始化的行数据写进像素缓存（MSan 在 SetPixelViaPixelInfo 处报错）；修复检查返回值，读不满即跳出循环。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "02eee091d2023d91d15d271ac9e6fe049a6e4c5f",
+        "upstream_date": "2018-01-23",
+        "file": "patches/02eee091d2023d91d15d271ac9e6fe049a6e4c5f.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/wpg.c",
+            "functions": [
+              "ReadWPGImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 1391,
+                "old_lines": 7,
+                "new_start": 1391,
+                "new_lines": 12
+              }
+            ]
+          }
+        ],
+        "lines_added": 6,
+        "lines_removed": 1
+      },
+      "fix_summary": "ReadWPGImage：调整相关实现（+6/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42521270",
+      "format": "PCX",
+      "fuzz_target": "encoder_pcx_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/pixel-accessor.h",
+        "line": 567,
+        "function": "IsPixelMonochrome",
+        "stack": [
+          "IsPixelMonochrome",
+          "IdentifyImageMonochrome",
+          "SetImageMonochrome"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/pcx.c",
+        "function": "ReadPCXImage",
+        "line": 385,
+        "before": "",
+        "after": "    (void) SetImageBackgroundColor(image,exception);",
+        "diff": "@@ -385,6 +385,7 @@ static Image *ReadPCXImage(const ImageInfo *image_info,ExceptionInfo *exception)\n       image->colormap[i].green=ScaleCharToQuantum(*p++);\n       image->colormap[i].blue=ScaleCharToQuantum(*p++);\n     }\n+    (void) SetImageBackgroundColor(image,exception);\n     pcx_info.bytes_per_line=ReadBlobLSBShort(image);\n     pcx_info.palette_info=ReadBlobLSBShort(image);\n     pcx_info.horizontal_screensize=ReadBlobLSBShort(image);"
+      },
+      "description": "`coders/pcx.c:385`（`ReadPCXImage`）：读完 16 色调色板后没有初始化像素缓存，解码未覆盖的像素保持未初始化值（MSan 在 IsPixelMonochrome 处报错）；修复在解析像素前 SetImageBackgroundColor 预填背景。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "a5136e6c737e76e613da9241d7ecb273d84787d0",
+        "upstream_date": "2018-01-23",
+        "file": "patches/a5136e6c737e76e613da9241d7ecb273d84787d0.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/pcx.c",
+            "functions": [
+              "ReadPCXImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 385,
+                "old_lines": 6,
+                "new_start": 385,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadPCXImage：补齐缓冲区初始化/清零（+1/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42521591",
+      "format": "MVG",
+      "fuzz_target": "encoder_mvg_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Stack-buffer-overflow WRITE 1",
+        "cwe": "CWE-121",
+        "cwe_name": "Stack-based Buffer Overflow"
+      },
+      "location": {
+        "file": "MagickCore/token.c",
+        "line": 313,
+        "function": "GetNextToken",
+        "stack": [
+          "GetNextToken",
+          "DrawImage",
+          "ReadMVGImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/token.c",
+        "function": "GetNextToken",
+        "line": 313,
+        "before": "  if ((LocaleNCompare(token,\"url(\",4) == 0) && (strlen(token) > 4))",
+        "after": "  if ((LocaleNCompare(token,\"url(\",4) == 0) && (strlen(token) > 5))",
+        "diff": "@@ -300,7 +300,7 @@ MagickExport void GetNextToken(const char *start,const char **end,\n     }\n   }\n   token[i]='\\0';\n-  if ((LocaleNCompare(token,\"url(\",4) == 0) && (strlen(token) > 4))\n+  if ((LocaleNCompare(token,\"url(\",4) == 0) && (strlen(token) > 5))\n     {\n       ssize_t\n         offset;"
+      },
+      "description": "`MagickCore/token.c:313`（`GetNextToken`）：识别 `url(` 时只要求 `strlen(token) > 4`，token 恰为 4 字节时 `i-offset-1` 等于 -1，`token[-1]='\\0'` 写到栈缓冲区之前（stack-buffer-overflow WRITE 1）；修复把判断改为 `strlen(token) > 5`。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "c9a75ec387eb3c1f3c9584b97260d72512868b1b",
+        "upstream_date": "2018-01-24",
+        "file": "patches/c9a75ec387eb3c1f3c9584b97260d72512868b1b.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "MagickCore/token.c",
+            "functions": [
+              "GetNextToken"
+            ],
+            "hunks": [
+              {
+                "old_start": 300,
+                "old_lines": 7,
+                "new_start": 300,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 1
+      },
+      "fix_summary": "GetNextToken：增加边界或长度校验（+1/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42522513",
+      "format": "MVG",
+      "fuzz_target": "encoder_mvg_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/draw.c",
+        "line": 3948,
+        "function": "GetFillAlpha",
+        "stack": [
+          "GetFillAlpha",
+          "DrawPolygonPrimitive",
+          "DrawPrimitive"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/draw.c",
+        "function": "GetFillAlpha",
+        "line": 3948,
+        "before": "    for ( ; i < (ssize_t) p->number_points; i++)",
+        "after": "    for ( ; i < (ssize_t) (p->number_points-1); i++)",
+        "diff": "@@ -3941,7 +3941,7 @@ static double GetFillAlpha(PolygonInfo *polygon_info,const double mid,\n         continue;\n       }\n     i=(ssize_t) MagickMax((double) p->highwater,1.0);\n-    for ( ; i < (ssize_t) p->number_points; i++)\n+    for ( ; i < (ssize_t) (p->number_points-1); i++)\n       if ((double) y <= p->points[i].y)\n         break;\n     q=p->points+i-1;"
+      },
+      "description": "`MagickCore/draw.c:3948`（`GetFillAlpha`）：扫描线求交的循环上界写成 `p->number_points`，y 高于所有顶点时 i 停在 number_points，`q=p->points+i-1` 之后的 `(q+1)->x` 读到 points 数组末尾之外的未初始化项（MSan 未初始化值）；修复把上界收紧到 `number_points-1`。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "8bb46b3381f8440fbf90bd88e1909dc83e089790",
+        "upstream_date": "2018-01-26",
+        "file": "patches/8bb46b3381f8440fbf90bd88e1909dc83e089790.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "MagickCore/draw.c",
+            "functions": [
+              "GetFillAlpha"
+            ],
+            "hunks": [
+              {
+                "old_start": 3941,
+                "old_lines": 7,
+                "new_start": 3941,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 1
+      },
+      "fix_summary": "GetFillAlpha：调整相关实现（+1/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42521846",
+      "format": "PICT",
+      "fuzz_target": "encoder_pict_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/colormap-private.h",
+        "line": 32,
+        "function": "ConstrainColormapIndex",
+        "stack": [
+          "ConstrainColormapIndex",
+          "ReadPICTImage",
+          "ReadImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/pict.c",
+        "function": "DecodeImage",
+        "line": 459,
+        "before": "",
+        "after": "  (void) ResetMagickMemory(scanline,0,2*row_bytes*sizeof(*scanline));",
+        "diff": "@@ -459,6 +459,7 @@ static unsigned char *DecodeImage(Image *blob,Image *image,\n       pixels=(unsigned char *) RelinquishMagickMemory(pixels);\n       return((unsigned char *) NULL);\n     }\n+  (void) ResetMagickMemory(scanline,0,2*row_bytes*sizeof(*scanline));\n   if (bytes_per_line < 8)\n     {\n       /*"
+      },
+      "description": "`coders/pict.c:459`（`DecodeImage`）：scanline 行缓冲分配后未清零，PICT 行压缩数据解不满一行时残留未初始化字节被当作像素索引（MSan 在 ConstrainColormapIndex 处报错）；修复清零 2*row_bytes 字节。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "21baa90e1854413d109512c3cda5242511e5a14a",
+        "upstream_date": "2018-01-27",
+        "file": "patches/21baa90e1854413d109512c3cda5242511e5a14a.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/pict.c",
+            "functions": [
+              "DecodeImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 459,
+                "old_lines": 6,
+                "new_start": 459,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 0
+      },
+      "fix_summary": "DecodeImage：补齐缓冲区初始化/清零（+1/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42521858",
+      "format": "PALM",
+      "fuzz_target": "encoder_palm_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/pixel.c",
+        "line": 6132,
+        "function": "IsFuzzyEquivalencePixelInfo",
+        "stack": [
+          "IsFuzzyEquivalencePixelInfo",
+          "TransparentPaintImage",
+          "ReadPALMImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/palm.c",
+        "function": "ReadPALMImage",
+        "line": 314,
+        "before": "",
+        "after": "    (void) SetImageBackgroundColor(image,exception);",
+        "diff": "@@ -314,6 +314,7 @@ static Image *ReadPALMImage(const ImageInfo *image_info,\n     status=SetImageExtent(image,image->columns,image->rows,exception);\n     if (status == MagickFalse)\n       return(DestroyImageList(image));\n+    (void) SetImageBackgroundColor(image,exception);\n     bytes_per_row=ReadBlobMSBShort(image);\n     flags=ReadBlobMSBShort(image);\n     bits_per_pixel=(size_t) ReadBlobByte(image);"
+      },
+      "description": "`coders/palm.c:314`（`ReadPALMImage`）：SetImageExtent 建立像素缓存后没有初始化，解码未覆盖的像素保持未初始化值（MSan 在 IsFuzzyEquivalencePixelInfo 处报错）；修复紧接着调用 SetImageBackgroundColor。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "ecd8728428d460b13821cc8e80aef671011329c7",
+        "upstream_date": "2018-01-27",
+        "file": "patches/ecd8728428d460b13821cc8e80aef671011329c7.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/palm.c",
+            "functions": [
+              "ReadPALMImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 314,
+                "old_lines": 6,
+                "new_start": 314,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadPALMImage：补齐缓冲区初始化/清零（+1/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42522869",
+      "format": "PALM",
+      "fuzz_target": "encoder_palm_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/quantum.h",
+        "line": 116,
+        "function": "ScaleQuantumToChar",
+        "stack": [
+          "ScaleQuantumToChar",
+          "ColorToNodeId",
+          "ClassifyImageColors"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/palm.c",
+        "function": "ReadPALMImage",
+        "line": 406,
+        "before": "    one_row=(unsigned char *) AcquireQuantumMemory(MagickMax(bytes_per_row,\n      2*image->columns),sizeof(*one_row));",
+        "after": "    extent=MagickMax(bytes_per_row,2*image->columns);\n    one_row=(unsigned char *) AcquireQuantumMemory(extent,sizeof(*one_row));\n    (void) ResetMagickMemory(one_row,0,extent*sizeof(*one_row));",
+        "diff": "@@ -405,10 +406,11 @@ static Image *ReadPALMImage(const ImageInfo *image_info,\n     status=SetImageExtent(image,image->columns,image->rows,exception);\n     if (status == MagickFalse)\n       return(DestroyImageList(image));\n-    one_row=(unsigned char *) AcquireQuantumMemory(MagickMax(bytes_per_row,\n-      2*image->columns),sizeof(*one_row));\n+    extent=MagickMax(bytes_per_row,2*image->columns);\n+    one_row=(unsigned char *) AcquireQuantumMemory(extent,sizeof(*one_row));\n     if (one_row == (unsigned char *) NULL)\n       ThrowReaderException(ResourceLimitError,\"MemoryAllocationFailed\");\n+    (void) ResetMagickMemory(one_row,0,extent*sizeof(*one_row));\n     last_row=(unsigned char *) NULL;\n     if (compressionType == PALM_COMPRESSION_SCANLINE)\n       {"
+      },
+      "description": "`coders/palm.c:406`（`ReadPALMImage`）：one_row 行缓冲按 MagickMax(bytes_per_row,2*columns) 分配但从不初始化，压缩行数据不足时未初始化字节参与像素计算（MSan 在 ScaleQuantumToChar 处报错）；修复把长度提到 extent 变量并在分配后清零该缓冲。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "73c6cc1f8da1d7f3647056f293c5a10da019c9b7",
+        "upstream_date": "2018-01-28",
+        "file": "patches/73c6cc1f8da1d7f3647056f293c5a10da019c9b7.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/palm.c",
+            "functions": [
+              "ReadPALMImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 256,
+                "old_lines": 9,
+                "new_start": 256,
+                "new_lines": 10
+              },
+              {
+                "old_start": 405,
+                "old_lines": 10,
+                "new_start": 406,
+                "new_lines": 11
+              }
+            ]
+          }
+        ],
+        "lines_added": 5,
+        "lines_removed": 3
+      },
+      "fix_summary": "ReadPALMImage：调整相关实现（+5/-3 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42523358",
+      "format": "PNM",
+      "fuzz_target": "encoder_pnm_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/pixel-accessor.h",
+        "line": 487,
+        "function": "IsPixelEquivalent",
+        "stack": [
+          "IsPixelEquivalent",
+          "ClassifyImageColors",
+          "QuantizeImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/pnm.c",
+        "function": "ReadPNMImage",
+        "line": 428,
+        "before": "",
+        "after": "    (void) SetImageBackgroundColor(image,exception);",
+        "diff": "@@ -428,6 +428,7 @@ static Image *ReadPNMImage(const ImageInfo *image_info,ExceptionInfo *exception)\n     status=SetImageExtent(image,image->columns,image->rows,exception);\n     if (status == MagickFalse)\n       return(DestroyImageList(image));\n+    (void) SetImageBackgroundColor(image,exception);\n     /*\n       Convert PNM pixels to runextent-encoded MIFF packets.\n     */"
+      },
+      "description": "`coders/pnm.c:428`（`ReadPNMImage`）：SetImageExtent 之后没有初始化像素缓存，PNM 数据未覆盖的像素保持未初始化值（MSan 在 IsPixelEquivalent 处报错）；修复立即调用 SetImageBackgroundColor。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "23246df8dfdebe0002bf9abfa0a5490238300ad9",
+        "upstream_date": "2018-01-29",
+        "file": "patches/23246df8dfdebe0002bf9abfa0a5490238300ad9.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/pnm.c",
+            "functions": [
+              "ReadPNMImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 428,
+                "old_lines": 6,
+                "new_start": 428,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadPNMImage：补齐缓冲区初始化/清零（+1/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42523812",
+      "format": "DPX",
+      "fuzz_target": "encoder_dpx_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/quantum-private.h",
+        "line": 504,
+        "function": "ScaleQuantumToShort",
+        "stack": [
+          "ScaleQuantumToShort",
+          "ExportGrayQuantum",
+          "ExportQuantumPixels"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/dpx.c",
+        "function": "ReadDPXImage",
+        "line": 1134,
+        "before": "",
+        "after": "  (void) SetImageBackgroundColor(image,exception);",
+        "diff": "@@ -1134,6 +1134,7 @@ static Image *ReadDPXImage(const ImageInfo *image_info,ExceptionInfo *exception)\n   status=SetImageExtent(image,image->columns,image->rows,exception);\n   if (status == MagickFalse)\n     return(DestroyImageList(image));\n+  (void) SetImageBackgroundColor(image,exception);\n   for (n=0; n < (ssize_t) dpx.image.number_elements; n++)\n   {\n     /*"
+      },
+      "description": "`coders/dpx.c:1134`（`ReadDPXImage`）：建立像素缓存后没有初始化，DPX 各元素解码未覆盖的像素保持未初始化值（MSan 在 ScaleQuantumToShort 处报错）；修复在遍历元素前调用 SetImageBackgroundColor。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "9e74769caca25bc62707772ef15de9a510609bf2",
+        "upstream_date": "2018-01-31",
+        "file": "patches/9e74769caca25bc62707772ef15de9a510609bf2.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/dpx.c",
+            "functions": [
+              "ReadDPXImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 1134,
+                "old_lines": 6,
+                "new_start": 1134,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadDPXImage：补齐缓冲区初始化/清零（+1/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42523868",
+      "format": "MAT",
+      "fuzz_target": "encoder_mat_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/pixel-accessor.h",
+        "line": 522,
+        "function": "IsPixelGray",
+        "stack": [
+          "IsPixelGray",
+          "IdentifyImageGray",
+          "SetImageGray"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/mat.c",
+        "function": "ReadMATImageV4",
+        "line": 697,
+        "before": "",
+        "after": "    (void) SetImageBackgroundColor(image,exception);",
+        "diff": "@@ -697,6 +697,7 @@ static Image *ReadMATImageV4(const ImageInfo *image_info,Image *image,\n     status=SetImageExtent(image,image->columns,image->rows,exception);\n     if (status == MagickFalse)\n       return((Image *) NULL);\n+    (void) SetImageBackgroundColor(image,exception);\n     quantum_info=AcquireQuantumInfo(image_info,image);\n     if (quantum_info == (QuantumInfo *) NULL)\n       return((Image *) NULL);"
+      },
+      "description": "`coders/mat.c:697`（`ReadMATImageV4`）：SetImageExtent 之后未初始化像素，MAT v4 数据未覆盖的区域保持未初始化值（MSan 在 IsPixelGray 处报错）；修复立即调用 SetImageBackgroundColor。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "79ef217ff11ad37e45946bb17ab1d4f3311066c7",
+        "upstream_date": "2018-01-31",
+        "file": "patches/79ef217ff11ad37e45946bb17ab1d4f3311066c7.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/mat.c",
+            "functions": [
+              "ReadMATImageV4"
+            ],
+            "hunks": [
+              {
+                "old_start": 697,
+                "old_lines": 6,
+                "new_start": 697,
+                "new_lines": 7
+              },
+              {
+                "old_start": 1195,
+                "old_lines": 6,
+                "new_start": 1196,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadMATImageV4：补齐缓冲区初始化/清零（+2/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42523879",
+      "format": "PSD",
+      "fuzz_target": "encoder_psd_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Negative-size-param",
+        "cwe": "CWE-787",
+        "cwe_name": "Out-of-bounds Write"
+      },
+      "location": {
+        "file": "MagickCore/memory.c",
+        "line": 726,
+        "function": "CopyMagickMemory",
+        "stack": [
+          "__asan_memcpy",
+          "CopyMagickMemory",
+          "RemoveResolutionFromResourceBlock"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/psd.c",
+        "function": "RemoveResolutionFromResourceBlock",
+        "line": 3046,
+        "before": "    if ((id == 0x000003ed) && (cnt < (ssize_t) (length-12)))",
+        "after": "    if ((id == 0x000003ed) && (cnt < (ssize_t) (length-12)) &&\n        ((ssize_t) length-(cnt+12)-(q-datum)) > 0)",
+        "diff": "@@ -3046,7 +3046,8 @@ static void RemoveResolutionFromResourceBlock(StringInfo *bim_profile)\n     cnt=PSDQuantum(count);\n     if (cnt < 0)\n       return;\n-    if ((id == 0x000003ed) && (cnt < (ssize_t) (length-12)))\n+    if ((id == 0x000003ed) && (cnt < (ssize_t) (length-12)) &&\n+        ((ssize_t) length-(cnt+12)-(q-datum)) > 0)\n       {\n         (void) CopyMagickMemory(q,q+cnt+12,length-(cnt+12)-(q-datum));\n         SetStringInfoLength(bim_profile,length-(cnt+12));"
+      },
+      "description": "`coders/psd.c:3046`（`RemoveResolutionFromResourceBlock`）：删除 8BIM 分辨率块时按 `length-(cnt+12)-(q-datum)` 计算 memcpy 长度，cnt 与剩余长度不一致时结果为负，转成 size_t 变成极大值（负长度 memcpy 造成的越界写）；修复要求该余量必须大于 0 才执行拷贝。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "6f7924965f38eeaa43901d6c7b3d7a9157ccd1e1",
+        "upstream_date": "2018-01-31",
+        "file": "patches/6f7924965f38eeaa43901d6c7b3d7a9157ccd1e1.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/psd.c",
+            "functions": [
+              "RemoveResolutionFromResourceBlock"
+            ],
+            "hunks": [
+              {
+                "old_start": 3046,
+                "old_lines": 7,
+                "new_start": 3046,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 1
+      },
+      "fix_summary": "RemoveResolutionFromResourceBlock：增加边界或长度校验（+2/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42518560",
+      "format": "TXT",
+      "fuzz_target": "encoder_txt_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/cache.c",
+        "line": 3954,
+        "function": "QueueAuthenticPixelCacheNexus",
+        "stack": [
+          "QueueAuthenticPixelCacheNexus",
+          "GetAuthenticPixelCacheNexus",
+          "GetAuthenticPixels"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/txt.c",
+        "function": "ReadTXTImage",
+        "line": 437,
+        "before": "",
+        "after": "  x_offset=(-1);\n  y_offset=(-1);",
+        "diff": "@@ -437,6 +437,8 @@ static Image *ReadTXTImage(const ImageInfo *image_info,ExceptionInfo *exception)\n   (void) ReadBlobString(image,text);\n   if (LocaleNCompare((char *) text,MagickID,strlen(MagickID)) != 0)\n     ThrowReaderException(CorruptImageError,\"ImproperImageHeader\");\n+  x_offset=(-1);\n+  y_offset=(-1);\n   do\n   {\n     width=0;"
+      },
+      "description": "`coders/txt.c:437`（`ReadTXTImage`）：x_offset/y_offset 在解析出第一个坐标之前未初始化，行内坐标不全时直接参与像素定位（MSan 在 QueueAuthenticPixelCacheNexus 处报错）；修复在解析循环前把两者置为 -1。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "169a3ff38425613b156015c23056c4adf0dbf221",
+        "upstream_date": "2018-02-01",
+        "file": "patches/169a3ff38425613b156015c23056c4adf0dbf221.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/txt.c",
+            "functions": [
+              "ReadTXTImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 437,
+                "old_lines": 6,
+                "new_start": 437,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadTXTImage：调整相关实现（+2/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42519915",
+      "format": "MIFF",
+      "fuzz_target": "encoder_miff_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/locale.c",
+        "line": 1518,
+        "function": "LocaleNCompare",
+        "stack": [
+          "LocaleNCompare",
+          "GetProfilesFromResourceBlock",
+          "SetImageProfileInternal"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/miff.c",
+        "function": "PushRunlengthPacket",
+        "line": 194,
+        "before": "      pixel->index=0;\n          pixel->index=ConstrainColormapIndex(image,((size_t) *p << 24) |\n            ((size_t) *(p+1) << 16) | ((size_t) *(p+2) << 8) | (size_t) *(p+3),\n            exception);\n          pixel->index=ConstrainColormapIndex(image,(*p << 8) | *(p+1),\n            exception);\n          pixel->index=ConstrainColormapIndex(image,*p,exception);",
+        "after": "      pixel->index=0.0;\n          pixel->index=(MagickRealType) ConstrainColormapIndex(image,(ssize_t)\n            (((size_t) *p << 24) | ((size_t) *(p+1) << 16) |\n            ((size_t) *(p+2) << 8) | (size_t) *(p+3)),exception);\n          pixel->index=(MagickRealType) ConstrainColormapIndex(image,(ssize_t)\n            ((*p << 8) | *(p+1)),exception);\n          pixel->index=(MagickRealType) ConstrainColormapIndex(image,\n            (ssize_t) *p,exception);",
+        "diff": "@@ -194,27 +194,28 @@ static void PushRunlengthPacket(Image *image,const unsigned char *pixels,\n   p=pixels;\n   if (image->storage_class == PseudoClass)\n     {\n-      pixel->index=0;\n+      pixel->index=0.0;\n       switch (image->depth)\n       {\n         case 32:\n         {\n-          pixel->index=ConstrainColormapIndex(image,((size_t) *p << 24) |\n-            ((size_t) *(p+1) << 16) | ((size_t) *(p+2) << 8) | (size_t) *(p+3),\n-            exception);\n+          pixel->index=(MagickRealType) ConstrainColormapIndex(image,(ssize_t)\n+            (((size_t) *p << 24) | ((size_t) *(p+1) << 16) |\n+            ((size_t) *(p+2) << 8) | (size_t) *(p+3)),exception);\n           p+=4;\n           break;\n         }\n         case 16:\n         {\n-          pixel->index=ConstrainColormapIndex(image,(*p << 8) | *(p+1),\n-            exception);\n+          pixel->index=(MagickRealType) ConstrainColormapIndex(image,(ssize_t)\n+            ((*p << 8) | *(p+1)),exception);\n           p+=2;\n           break;\n         }\n         case 8:\n         {\n-          pixel->index=ConstrainColormapIndex(image,*p,exception);\n+          pixel->index=(MagickRealType) ConstrainColormapIndex(image,\n+            (ssize_t) *p,exception);\n           p++;\n           break;\n         }"
+      },
+      "description": "`coders/miff.c:194`（`PushRunlengthPacket`）：伪彩图 32/16/8 位索引由 `(*p << 8) | *(p+1)` 一类表达式拼出后隐式转换成 ssize_t 传给 ConstrainColormapIndex，符号/类型不匹配使越界索引没有被拦住（MSan 在 LocaleNCompare 处报未初始化值）；修复显式转成 ssize_t 并用 MagickRealType 赋值 pixel->index。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "008465f1b8eb05752f8482e9cc2a073f0e978f09",
+        "upstream_date": "2018-02-02",
+        "file": "patches/008465f1b8eb05752f8482e9cc2a073f0e978f09.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/miff.c",
+            "functions": [
+              "PushRunlengthPacket",
+              "ReadMIFFImage",
+              "WriteMIFFImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 194,
+                "old_lines": 27,
+                "new_start": 194,
+                "new_lines": 28
+              },
+              {
+                "old_start": 232,
+                "old_lines": 7,
+                "new_start": 233,
+                "new_lines": 7
+              },
+              {
+                "old_start": 244,
+                "old_lines": 7,
+                "new_start": 245,
+                "new_lines": 7
+              },
+              {
+                "old_start": 257,
+                "old_lines": 7,
+                "new_start": 258,
+                "new_lines": 7
+              },
+              {
+                "old_start": 277,
+                "old_lines": 25,
+                "new_start": 278,
+                "new_lines": 25
+              },
+              {
+                "old_start": 305,
+                "old_lines": 25,
+                "new_start": 306,
+                "new_lines": 30
+              },
+              {
+                "old_start": 333,
+                "old_lines": 25,
+                "new_start": 339,
+                "new_lines": 30
+              },
+              {
+                "old_start": 899,
+                "old_lines": 6,
+                "new_start": 910,
+                "new_lines": 9
+              },
+              {
+                "old_start": 1191,
+                "old_lines": 7,
+                "new_start": 1205,
+                "new_lines": 7
+              },
+              {
+                "old_start": 1221,
+                "old_lines": 11,
+                "new_start": 1235,
+                "new_lines": 14
+              },
+              {
+                "old_start": 1237,
+                "old_lines": 11,
+                "new_start": 1254,
+                "new_lines": 14
+              },
+              {
+                "old_start": 1253,
+                "old_lines": 11,
+                "new_start": 1273,
+                "new_lines": 14
+              },
+              {
+                "old_start": 2066,
+                "old_lines": 7,
+                "new_start": 2089,
+                "new_lines": 7
+              },
+              {
+                "old_start": 2347,
+                "old_lines": 7,
+                "new_start": 2370,
+                "new_lines": 7
+              },
+              {
+                "old_start": 2419,
+                "old_lines": 11,
+                "new_start": 2442,
+                "new_lines": 11
+              },
+              {
+                "old_start": 2432,
+                "old_lines": 11,
+                "new_start": 2455,
+                "new_lines": 11
+              },
+              {
+                "old_start": 2445,
+                "old_lines": 12,
+                "new_start": 2468,
+                "new_lines": 14
+              }
+            ]
+          }
+        ],
+        "lines_added": 71,
+        "lines_removed": 46
+      },
+      "fix_summary": "PushRunlengthPacket：调整相关实现（+71/-46 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42524289",
+      "format": "MVG",
+      "fuzz_target": "encoder_mvg_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Heap-buffer-overflow WRITE 8",
+        "cwe": "CWE-787",
+        "cwe_name": "Out-of-bounds Write"
+      },
+      "location": {
+        "file": "MagickCore/draw.c",
+        "line": 1666,
+        "function": "TracePoint",
+        "stack": [
+          "TracePoint",
+          "TraceEllipse",
+          "DrawImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/draw.c",
+        "function": "TracePoint",
+        "line": 1666,
+        "before": "        radius=hypot((double) alpha,(double) beta);\n        points_extent=2*ceil((double) MagickPI*radius)+6*BezierQuantum+360;",
+        "after": "        radius=hypot(alpha,beta);\n        points_extent=ceil(MagickPI*MagickPI*radius)+6*BezierQuantum+360;",
+        "diff": "@@ -3029,8 +3029,8 @@ MagickExport MagickBooleanType DrawImage(Image *image,const DrawInfo *draw_info,\n \n         alpha=bounds.x2-bounds.x1;\n         beta=bounds.y2-bounds.y1;\n-        radius=hypot((double) alpha,(double) beta);\n-        points_extent=2*ceil((double) MagickPI*radius)+6*BezierQuantum+360;\n+        radius=hypot(alpha,beta);\n+        points_extent=ceil(MagickPI*MagickPI*radius)+6*BezierQuantum+360;\n         break;\n       }\n       default:"
+      },
+      "description": "MVG 的 ARC 图元按包围盒对角线估算点数组容量（2π×对角线 ≈ 21.7 万），而实际点数由角度跨度×半径决定：起始角 -33130° 未归一化、跨 92 圈，TraceEllipse 要写 32.2 万个点，写越界 8 字节。",
+      "description_source": "reviewed",
+      "patch": {
+        "upstream_commit": "2ebcbdbaee0a9bdfa0f11f9b47774668537ea709",
+        "upstream_date": "2018-02-02",
+        "file": "patches/2ebcbdbaee0a9bdfa0f11f9b47774668537ea709.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "MagickCore/draw.c",
+            "functions": [
+              "DrawImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 3029,
+                "old_lines": 8,
+                "new_start": 3029,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 2
+      },
+      "fix_summary": "DrawImage 把容量系数由 2π 改为 π²，容量 22.3 万→34.6 万，覆盖该 PoC 的 32.2 万点。",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42524701",
+      "format": "XCF",
+      "fuzz_target": "encoder_xcf_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/pixel-accessor.h",
+        "line": 37,
+        "function": "ClampPixel",
+        "stack": [
+          "ClampPixel",
+          "CompositeImage",
+          "load_level"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/xcf.c",
+        "function": "load_level",
+        "line": 669,
+        "before": "",
+        "after": "      (void) SetImageBackgroundColor(tile_image,exception);",
+        "diff": "@@ -669,6 +669,7 @@ static MagickBooleanType load_level(Image *image,XCFDocInfo *inDocInfo,\n       if (tile_image == (Image *) NULL)\n         ThrowBinaryException(ResourceLimitError,\"MemoryAllocationFailed\",\n           image->filename);\n+      (void) SetImageBackgroundColor(tile_image,exception);\n \n       /* read in the tile */\n       switch (inDocInfo->compression)"
+      },
+      "description": "`coders/xcf.c:669`（`load_level`）：每个 tile 图像建立后没有初始化像素，XCF 压缩数据未覆盖的像素保持未初始化值（MSan 在 ClampPixel 处报错）；修复在读取 tile 数据前对 tile_image 调用 SetImageBackgroundColor。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "4fc95b7c4291ec9216929c525cc3e6ed55b39149",
+        "upstream_date": "2018-02-03",
+        "file": "patches/4fc95b7c4291ec9216929c525cc3e6ed55b39149.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/xcf.c",
+            "functions": [
+              "load_level"
+            ],
+            "hunks": [
+              {
+                "old_start": 669,
+                "old_lines": 6,
+                "new_start": 669,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 0
+      },
+      "fix_summary": "load_level：补齐缓冲区初始化/清零（+1/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42518471",
+      "format": "MIFF",
+      "fuzz_target": "encoder_miff_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/property.c",
+        "line": 1750,
+        "function": "GetXMPProperty",
+        "stack": [
+          "GetXMPProperty",
+          "GetImageProperty",
+          "SetImageProfileInternal"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/property.c",
+        "function": "GetXMPProperty",
+        "line": 1750,
+        "before": "",
+        "after": "  if (GetStringInfoLength(profile) < 17)\n    return(MagickFalse);",
+        "diff": "@@ -1742,6 +1742,8 @@ static MagickBooleanType GetXMPProperty(const Image *image,const char *property)\n   profile=GetImageProfile(image,\"xmp\");\n   if (profile == (StringInfo *) NULL)\n     return(MagickFalse);\n+  if (GetStringInfoLength(profile) < 17)\n+    return(MagickFalse);\n   if ((property == (const char *) NULL) || (*property == '\\0'))\n     return(MagickFalse);\n   xmp_profile=StringInfoToString(profile);"
+      },
+      "description": "`MagickCore/property.c:1742`（`GetXMPProperty`）：取得 xmp profile 后不看长度就直接按固定偏移访问，profile 短于 17 字节时越界读取（heap-buffer-overflow READ 1）；修复在开始解析前增加 `GetStringInfoLength(profile) < 17` 的检查。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "af223b025da2ffb56a4e50160448e845f9b5e186",
+        "upstream_date": "2018-02-04",
+        "file": "patches/af223b025da2ffb56a4e50160448e845f9b5e186.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "MagickCore/property.c",
+            "functions": [
+              "GetXMPProperty"
+            ],
+            "hunks": [
+              {
+                "old_start": 1742,
+                "old_lines": 6,
+                "new_start": 1742,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 0
+      },
+      "fix_summary": "GetXMPProperty：调整相关实现（+2/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42520316",
+      "format": "EPS",
+      "fuzz_target": "encoder_eps_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Heap-buffer-overflow READ 1",
+        "cwe": "CWE-125",
+        "cwe_name": "Out-of-bounds Read"
+      },
+      "location": {
+        "file": "MagickCore/xml-tree.c",
+        "line": 1722,
+        "function": "ParseInternalDoctype",
+        "stack": [
+          "strspn",
+          "ParseInternalDoctype",
+          "NewXMLTree"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/property.c",
+        "function": "GetXMPProperty",
+        "line": 1747,
+        "before": "",
+        "after": "  if ((strstr(xmp_profile,\"<rdf:RDF\") == (char *) NULL) ||\n      (strstr(xmp_profile,\"<rdf:Description\") == (char *) NULL) ||\n      (strstr(xmp_profile,\"<x:\") == (char *) NULL))\n    {\n      xmp_profile=DestroyString(xmp_profile);\n      return(MagickFalse);\n    }",
+        "diff": "@@ -1747,6 +1747,13 @@ static MagickBooleanType GetXMPProperty(const Image *image,const char *property)\n   xmp_profile=StringInfoToString(profile);\n   if (xmp_profile == (char *) NULL)\n     return(MagickFalse);\n+  if ((strstr(xmp_profile,\"<rdf:RDF\") == (char *) NULL) ||\n+      (strstr(xmp_profile,\"<rdf:Description\") == (char *) NULL) ||\n+      (strstr(xmp_profile,\"<x:\") == (char *) NULL))\n+    {\n+      xmp_profile=DestroyString(xmp_profile);\n+      return(MagickFalse);\n+    }\n   for (p=xmp_profile; *p != '\\0'; p++)\n     if ((*p == '<') && (*(p+1) == 'x'))\n       break;"
+      },
+      "description": "`MagickCore/property.c:1747`（`GetXMPProperty`）：拿到 xmp profile 后不确认内容是否真是 XMP（`<rdf:RDF`/`<rdf:Description`/`<x:`）就按 XMP 结构扫描，内容不符时后续 XML 解析越界读（heap-buffer-overflow READ 1，崩溃点落在 ParseInternalDoctype）；修复先用三次 strstr 判定，不符则释放并返回 MagickFalse。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "3b30dbea8817d45471ec132014a3bc44e05fdf97",
+        "upstream_date": "2018-02-04",
+        "file": "patches/3b30dbea8817d45471ec132014a3bc44e05fdf97.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "MagickCore/property.c",
+            "functions": [
+              "GetXMPProperty"
+            ],
+            "hunks": [
+              {
+                "old_start": 1747,
+                "old_lines": 6,
+                "new_start": 1747,
+                "new_lines": 13
+              }
+            ]
+          },
+          {
+            "path": "coders/ps.c",
+            "functions": [
+              "ReadPSImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 694,
+                "old_lines": 7,
+                "new_start": 694,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 9,
+        "lines_removed": 1
+      },
+      "fix_summary": "GetXMPProperty：增加边界或长度校验（+9/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "decode failed, unchanged"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42525647",
+      "format": "MIFF",
+      "fuzz_target": "encoder_miff_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/property.c",
+        "line": 1336,
+        "function": "GetEXIFProperty",
+        "stack": [
+          "GetEXIFProperty",
+          "GetImageProperty",
+          "SetImageProfileInternal"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/miff.c",
+        "function": "ReadMIFFImage",
+        "line": 901,
+        "before": "                    (void) SetImageProfile(image,keyword+8,profile,exception);",
+        "after": "                    if (EOFBlob(image) == MagickFalse)\n                      (void) SetImageProfile(image,keyword+8,profile,\n                        exception);",
+        "diff": "@@ -901,7 +901,9 @@ static Image *ReadMIFFImage(const ImageInfo *image_info,\n                     if (profile == (StringInfo *) NULL)\n                       ThrowReaderException(ResourceLimitError,\n                         \"MemoryAllocationFailed\");\n-                    (void) SetImageProfile(image,keyword+8,profile,exception);\n+                    if (EOFBlob(image) == MagickFalse)\n+                      (void) SetImageProfile(image,keyword+8,profile,\n+                        exception);\n                     profile=DestroyStringInfo(profile);\n                     break;\n                   }"
+      },
+      "description": "`coders/miff.c:901`（`ReadMIFFImage`）：读取 profile 数据后不判断 EOFBlob 就 SetImageProfile，文件在 profile 中途结束时未填满的缓冲区被存成图像属性，后续属性解析读取未初始化内容（MSan 在 GetEXIFProperty 处报错）；修复只在未到文件末尾时才设置 profile。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "78eaf41a792bb35a8b9e7ac4f72d86a8cb7d6d0a",
+        "upstream_date": "2018-02-05",
+        "file": "patches/resolved/78eaf41a792bb35a8b9e7ac4f72d86a8cb7d6d0a.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "coders/miff.c",
+            "functions": [
+              "ReadMIFFImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 901,
+                "old_lines": 7,
+                "new_start": 901,
+                "new_lines": 9
+              }
+            ]
+          },
+          {
+            "path": "coders/mpc.c",
+            "functions": [
+              "ReadMPCImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 633,
+                "old_lines": 7,
+                "new_start": 633,
+                "new_lines": 9
+              }
+            ]
+          }
+        ],
+        "lines_added": 6,
+        "lines_removed": 2
+      },
+      "fix_summary": "ReadMIFFImage：调整相关实现（+6/-2 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42525669",
+      "format": "MIFF",
+      "fuzz_target": "encoder_miff_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/locale.c",
+        "line": 1518,
+        "function": "LocaleNCompare",
+        "stack": [
+          "LocaleNCompare",
+          "GetProfilesFromResourceBlock",
+          "SetImageProfileInternal"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/miff.c",
+        "function": "ReadMIFFImage",
+        "line": 901,
+        "before": "                    (void) SetImageProfile(image,keyword+8,profile,exception);",
+        "after": "                    if (EOFBlob(image) == MagickFalse)\n                      (void) SetImageProfile(image,keyword+8,profile,\n                        exception);",
+        "diff": "@@ -901,7 +901,9 @@ static Image *ReadMIFFImage(const ImageInfo *image_info,\n                     if (profile == (StringInfo *) NULL)\n                       ThrowReaderException(ResourceLimitError,\n                         \"MemoryAllocationFailed\");\n-                    (void) SetImageProfile(image,keyword+8,profile,exception);\n+                    if (EOFBlob(image) == MagickFalse)\n+                      (void) SetImageProfile(image,keyword+8,profile,\n+                        exception);\n                     profile=DestroyStringInfo(profile);\n                     break;\n                   }"
+      },
+      "description": "`coders/miff.c:901`（`ReadMIFFImage`）：profile 读到 EOF 后仍被 SetImageProfile 保存，长度与实际数据不符，属性扫描时读到未初始化字节（MSan 在 LocaleNCompare 处报错）；修复加 EOFBlob 判断，只在未到末尾时设置 profile。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "78eaf41a792bb35a8b9e7ac4f72d86a8cb7d6d0a",
+        "upstream_date": "2018-02-05",
+        "file": "patches/resolved/78eaf41a792bb35a8b9e7ac4f72d86a8cb7d6d0a.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "coders/miff.c",
+            "functions": [
+              "ReadMIFFImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 901,
+                "old_lines": 7,
+                "new_start": 901,
+                "new_lines": 9
+              }
+            ]
+          },
+          {
+            "path": "coders/mpc.c",
+            "functions": [
+              "ReadMPCImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 633,
+                "old_lines": 7,
+                "new_start": 633,
+                "new_lines": 9
+              }
+            ]
+          }
+        ],
+        "lines_added": 6,
+        "lines_removed": 2
+      },
+      "fix_summary": "ReadMIFFImage：调整相关实现（+6/-2 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42525880",
+      "format": "HDR",
+      "fuzz_target": "encoder_hdr_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Stack-buffer-overflow READ {*}",
+        "cwe": "CWE-125",
+        "cwe_name": "Out-of-bounds Read"
+      },
+      "location": {
+        "file": "MagickCore/blob.c",
+        "line": 5436,
+        "function": "WriteBlob",
+        "stack": [
+          "__asan_memcpy",
+          "WriteBlob",
+          "WriteHDRImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/hdr.c",
+        "function": "WriteHDRImage",
+        "line": 711,
+        "before": "      count=FormatLocaleString(header,MagickPathExtent,\"#%s\\n\",property);",
+        "after": "      count=FormatLocaleString(header,MagickPathExtent,\"#%.*s\\n\",\n        MagickPathExtent-3,property);",
+        "diff": "@@ -711,7 +711,8 @@ static MagickBooleanType WriteHDRImage(const ImageInfo *image_info,Image *image,\n   if ((property != (const char *) NULL) &&\n       (strchr(property,'\\n') == (char *) NULL))\n     {\n-      count=FormatLocaleString(header,MagickPathExtent,\"#%s\\n\",property);\n+      count=FormatLocaleString(header,MagickPathExtent,\"#%.*s\\n\",\n+        MagickPathExtent-3,property);\n       (void) WriteBlob(image,(size_t) count,(unsigned char *) header);\n     }\n   property=GetImageProperty(image,\"hdr:exposure\",exception);"
+      },
+      "description": "`coders/hdr.c:711`（`WriteHDRImage`）：把图像属性用 `#%s\\n` 格式化进固定长度的 header，属性过长时 FormatLocaleString 截断但返回完整长度，WriteBlob 按返回值读取 header 之外的内存（stack-buffer-overflow READ）；修复改用 `%.*s` 并把长度限制在 MagickPathExtent-3。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "07e656c7089f3b3ae30a71a042fb903c83e077b6",
+        "upstream_date": "2018-02-05",
+        "file": "patches/07e656c7089f3b3ae30a71a042fb903c83e077b6.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/hdr.c",
+            "functions": [
+              "WriteHDRImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 711,
+                "old_lines": 7,
+                "new_start": 711,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 1
+      },
+      "fix_summary": "WriteHDRImage：增加边界或长度校验（+2/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42521880",
+      "format": "VIFF",
+      "fuzz_target": "encoder_viff_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/quantum.h",
+        "line": 116,
+        "function": "ScaleQuantumToChar",
+        "stack": [
+          "ScaleQuantumToChar",
+          "WriteVIFFImage",
+          "WriteImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/viff.c",
+        "function": "ReadVIFFImage",
+        "line": 329,
+        "before": "",
+        "after": "    image->alpha_trait=viff_info.number_data_bands == 4 ? BlendPixelTrait :\n      UndefinedPixelTrait;\n    status=SetImageExtent(image,image->columns,image->rows,exception);\n    if (status == MagickFalse)\n      return(DestroyImageList(image));\n    (void) SetImageBackgroundColor(image,exception);",
+        "diff": "@@ -329,6 +329,12 @@ static Image *ReadVIFFImage(const ImageInfo *image_info,\n     image->rows=viff_info.columns;\n     image->depth=viff_info.x_bits_per_pixel <= 8 ? 8UL :\n       MAGICKCORE_QUANTUM_DEPTH;\n+    image->alpha_trait=viff_info.number_data_bands == 4 ? BlendPixelTrait :\n+      UndefinedPixelTrait;\n+    status=SetImageExtent(image,image->columns,image->rows,exception);\n+    if (status == MagickFalse)\n+      return(DestroyImageList(image));\n+    (void) SetImageBackgroundColor(image,exception);\n     /*\n       Verify that we can read this VIFF image.\n     */"
+      },
+      "description": "`coders/viff.c:329`（`ReadVIFFImage`）：调色板解析之前没有建立并初始化像素缓存，图像数据未覆盖的像素保持未初始化值，编码时被换算成字节写出（MSan 在 ScaleQuantumToChar 处报错）；修复在此处补上 alpha_trait、SetImageExtent 与 SetImageBackgroundColor，并删掉原来留在解析之后的初始化块。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "391d3afd588b94f9ee2c5e4a70f5e9197e5afb21",
+        "upstream_date": "2018-02-06",
+        "file": "patches/resolved/391d3afd588b94f9ee2c5e4a70f5e9197e5afb21.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "coders/viff.c",
+            "functions": [
+              "ReadVIFFImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 329,
+                "old_lines": 6,
+                "new_start": 329,
+                "new_lines": 12
+              },
+              {
+                "old_start": 406,
+                "old_lines": 9,
+                "new_start": 412,
+                "new_lines": 11
+              },
+              {
+                "old_start": 453,
+                "old_lines": 18,
+                "new_start": 461,
+                "new_lines": 20
+              },
+              {
+                "old_start": 473,
+                "old_lines": 15,
+                "new_start": 483,
+                "new_lines": 6
+              },
+              {
+                "old_start": 504,
+                "old_lines": 17,
+                "new_start": 505,
+                "new_lines": 14
+              },
+              {
+                "old_start": 708,
+                "old_lines": 14,
+                "new_start": 706,
+                "new_lines": 14
+              },
+              {
+                "old_start": 1140,
+                "old_lines": 11,
+                "new_start": 1138,
+                "new_lines": 11
+              }
+            ]
+          }
+        ],
+        "lines_added": 29,
+        "lines_removed": 31
+      },
+      "fix_summary": "ReadVIFFImage：调整相关实现（+29/-31 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42526335",
+      "format": "GIF",
+      "fuzz_target": "encoder_gif_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/profile.c",
+        "line": 1859,
+        "function": "Sync8BimProfile",
+        "stack": [
+          "Sync8BimProfile",
+          "SyncImageProfiles",
+          "WriteImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/profile.c",
+        "function": "Sync8BimProfile",
+        "line": 1859,
+        "before": "    if ((count > (ssize_t) length) || (count < 0))",
+        "after": "    if ((count >= (ssize_t) length) || (count < 0))",
+        "diff": "@@ -1834,7 +1834,7 @@ static MagickBooleanType Sync8BimProfile(Image *image,StringInfo *profile)\n       return(MagickFalse);\n     id=ReadProfileMSBShort(&p,&length);\n     count=(ssize_t) ReadProfileByte(&p,&length);\n-    if ((count > (ssize_t) length) || (count < 0))\n+    if ((count >= (ssize_t) length) || (count < 0))\n       return(MagickFalse);\n     p+=count;\n     length-=count;"
+      },
+      "description": "`MagickCore/profile.c:1834`（`Sync8BimProfile`）：8BIM 资源块里 `count` 与剩余长度用 `count > length` 比较，count 恰好等于 length 时仍执行 `p+=count; length-=count`，长度计数归零且指针落到块尾，后续读取越界拿到未初始化值（MSan 未初始化值）；修复改为 `count >= length` 即返回。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "6d4a20030385c8e42f7a3fa89c84556b5fc896d7",
+        "upstream_date": "2018-02-07",
+        "file": "patches/6d4a20030385c8e42f7a3fa89c84556b5fc896d7.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "MagickCore/profile.c",
+            "functions": [
+              "Sync8BimProfile"
+            ],
+            "hunks": [
+              {
+                "old_start": 1834,
+                "old_lines": 7,
+                "new_start": 1834,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 1
+      },
+      "fix_summary": "Sync8BimProfile：调整相关实现（+1/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42526424",
+      "format": "EPSI",
+      "fuzz_target": "encoder_epsi_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Heap-buffer-overflow READ 1",
+        "cwe": "CWE-125",
+        "cwe_name": "Out-of-bounds Read"
+      },
+      "location": {
+        "file": "MagickCore/xml-tree.c",
+        "line": 1722,
+        "function": "ParseInternalDoctype",
+        "stack": [
+          "strspn",
+          "ParseInternalDoctype",
+          "NewXMLTree"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/xml-tree.c",
+        "function": "ParseInternalDoctype",
+        "line": 1722,
+        "before": "    if (strncmp(xml,\"<!ENTITY\",8) == 0)",
+        "after": "    if ((strlen(xml) > 9) && (strncmp(xml,\"<!ENTITY\",8) == 0))",
+        "diff": "@@ -1716,7 +1716,7 @@ static MagickBooleanType ParseInternalDoctype(XMLTreeRoot *root,char *xml,\n       xml++;\n     if (*xml == '\\0')\n       break;\n-    if (strncmp(xml,\"<!ENTITY\",8) == 0)\n+    if ((strlen(xml) > 9) && (strncmp(xml,\"<!ENTITY\",8) == 0))\n       {\n         /*\n           Parse entity definitions."
+      },
+      "description": "`MagickCore/xml-tree.c:1716`（`ParseInternalDoctype`）：只检查 `*xml != '\\0'` 就用 strncmp 比较 8 字节的 `<!ENTITY`，剩余不足 8 字节时越过字符串末尾读取（heap-buffer-overflow READ 1）；修复增加 `strlen(xml) > 9` 的前置判断。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "5f68b29b843b3c57f61b34e1db8f3144af458614",
+        "upstream_date": "2018-02-07",
+        "file": "patches/5f68b29b843b3c57f61b34e1db8f3144af458614.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "MagickCore/xml-tree.c",
+            "functions": [
+              "ParseInternalDoctype"
+            ],
+            "hunks": [
+              {
+                "old_start": 1716,
+                "old_lines": 7,
+                "new_start": 1716,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 1
+      },
+      "fix_summary": "ParseInternalDoctype：增加边界或长度校验（+1/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "decode failed, unchanged"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42526757",
+      "format": "PS",
+      "fuzz_target": "encoder_ps_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Heap-buffer-overflow READ 1",
+        "cwe": "CWE-125",
+        "cwe_name": "Out-of-bounds Read"
+      },
+      "location": {
+        "file": "MagickCore/xml-tree.c",
+        "line": 2288,
+        "function": "NewXMLTree",
+        "stack": [
+          "NewXMLTree",
+          "GetXMPProperty",
+          "GetImageProperty"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/ps.c",
+        "function": "ReadPSImage",
+        "line": 1009,
+        "before": "",
+        "after": "  if (profiles != (LinkedListInfo *) NULL)\n    {\n      const char\n        *name;\n\n      const StringInfo\n...\n            (void) count;\n          }\n        name=(const char *) GetNextValueInLinkedList(profiles);\n      }\n      profiles=DestroyLinkedList(profiles,RelinquishMagickMemory);\n    }",
+        "diff": "@@ -988,6 +1009,35 @@ static Image *ReadPSImage(const ImageInfo *image_info,ExceptionInfo *exception)\n           PrependImageToList(&postscript_image,clone_image);\n       }\n     }\n+  if (profiles != (LinkedListInfo *) NULL)\n+    {\n+      const char\n+        *name;\n+\n+      const StringInfo\n+        *profile;\n+\n+      /*\n+        Read image profiles.\n+      */\n+      ResetLinkedListIterator(profiles);\n+      name=(const char *) GetNextValueInLinkedList(profiles);\n+      while (name != (const char *) NULL)\n+      {\n+        profile=GetImageProfile(image,name);\n+        if (profile != (StringInfo *) NULL)\n+          {\n+            register unsigned char\n+              *p;\n+\n+            p=GetStringInfoDatum(profile);\n+            count=ReadBlob(image,GetStringInfoLength(profile),p);\n+            (void) count;\n+          }\n+        name=(const char *) GetNextValueInLinkedList(profiles);\n+      }\n+      profiles=DestroyLinkedList(profiles,RelinquishMagickMemory);\n+    }\n   do\n   {\n     (void) CopyMagickString(postscript_image->filename,filename,"
+      },
+      "description": "`coders/ps.c:1009`（`ReadPSImage`）：PS 文件里的 profile 段此前没有从 blob 读入，profile 缓冲区保持未初始化内容，随后 GetXMPProperty/NewXMLTree 把这些字节当 XML 解析并越界读（heap-buffer-overflow READ 1，崩溃点在 NewXMLTree）；修复在解析前按各 profile 的长度 ReadBlob 填入数据并释放 profile 链表。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "ba9e36555434ebe9da38a1341cfd9f304a326348",
+        "upstream_date": "2018-02-08",
+        "file": "patches/resolved/ba9e36555434ebe9da38a1341cfd9f304a326348.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "coders/ps.c",
+            "functions": [
+              "ReadPSImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 448,
+                "old_lines": 6,
+                "new_start": 448,
+                "new_lines": 9
+              },
+              {
+                "old_start": 581,
+                "old_lines": 6,
+                "new_start": 584,
+                "new_lines": 7
+              },
+              {
+                "old_start": 643,
+                "old_lines": 7,
+                "new_start": 647,
+                "new_lines": 9
+              },
+              {
+                "old_start": 659,
+                "old_lines": 7,
+                "new_start": 665,
+                "new_lines": 7
+              },
+              {
+                "old_start": 667,
+                "old_lines": 7,
+                "new_start": 673,
+                "new_lines": 9
+              },
+              {
+                "old_start": 679,
+                "old_lines": 9,
+                "new_start": 687,
+                "new_lines": 9
+              },
+              {
+                "old_start": 693,
+                "old_lines": 8,
+                "new_start": 701,
+                "new_lines": 13
+              },
+              {
+                "old_start": 816,
+                "old_lines": 6,
+                "new_start": 829,
+                "new_lines": 8
+              },
+              {
+                "old_start": 837,
+                "old_lines": 6,
+                "new_start": 852,
+                "new_lines": 8
+              },
+              {
+                "old_start": 868,
+                "old_lines": 6,
+                "new_start": 885,
+                "new_lines": 8
+              },
+              {
+                "old_start": 958,
+                "old_lines": 6,
+                "new_start": 977,
+                "new_lines": 8
+              },
+              {
+                "old_start": 988,
+                "old_lines": 6,
+                "new_start": 1009,
+                "new_lines": 35
+              }
+            ]
+          }
+        ],
+        "lines_added": 57,
+        "lines_removed": 7
+      },
+      "fix_summary": "ReadPSImage：增加边界或长度校验（+57/-7 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "decode failed, unchanged"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42527322",
+      "format": "PICT",
+      "fuzz_target": "encoder_pict_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/quantum.h",
+        "line": 116,
+        "function": "ScaleQuantumToChar",
+        "stack": [
+          "ScaleQuantumToChar",
+          "WritePICTImage",
+          "WriteImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/pict.c",
+        "function": "ReadPICTImage",
+        "line": 927,
+        "before": "",
+        "after": "  image->alpha_trait=BlendPixelTrait;\n  (void) SetImageBackgroundColor(image,exception);",
+        "diff": "@@ -927,6 +927,8 @@ static Image *ReadPICTImage(const ImageInfo *image_info,\n   status=SetImageExtent(image,image->columns,image->rows,exception);\n   if (status == MagickFalse)\n     return(DestroyImageList(image));\n+  image->alpha_trait=BlendPixelTrait;\n+  (void) SetImageBackgroundColor(image,exception);\n   /*\n     Interpret PICT opcodes.\n   */"
+      },
+      "description": "`coders/pict.c:927`（`ReadPICTImage`）：SetImageExtent 之后直接按 opcode 写像素，alpha 通道既不参与解码也未被初始化（MSan 在 ScaleQuantumToChar 处报错）；修复设置 `image->alpha_trait=BlendPixelTrait` 并调用 SetImageBackgroundColor。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "820e6361927e3bfa346ce085311d001681863a23",
+        "upstream_date": "2018-02-09",
+        "file": "patches/resolved/820e6361927e3bfa346ce085311d001681863a23.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "coders/pict.c",
+            "functions": [
+              "ReadPICTImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 927,
+                "old_lines": 6,
+                "new_start": 927,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadPICTImage：补齐缓冲区初始化/清零（+2/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42527699",
+      "format": "GIF",
+      "fuzz_target": "encoder_gif_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/profile.c",
+        "line": 1844,
+        "function": "Sync8BimProfile",
+        "stack": [
+          "Sync8BimProfile",
+          "SyncImageProfiles",
+          "WriteImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/string.c",
+        "function": "AcquireStringInfo",
+        "line": 182,
+        "before": "",
+        "after": "  (void) memset(string_info->datum,0,length+MagickPathExtent);",
+        "diff": "@@ -182,6 +182,7 @@ MagickExport StringInfo *AcquireStringInfo(const size_t length)\n       string_info->length+MagickPathExtent,sizeof(*string_info->datum));\n   if (string_info->datum == (unsigned char *) NULL)\n     ThrowFatalException(ResourceLimitFatalError,\"MemoryAllocationFailed\");\n+  (void) memset(string_info->datum,0,length+MagickPathExtent);\n   return(string_info);\n }\n "
+      },
+      "description": "`MagickCore/string.c:182`（`AcquireStringInfo`）：StringInfo 的 datum 按 length+MagickPathExtent 分配但未清零，超出 length 的尾部字节在按 C 字符串使用时是未初始化的（MSan 在 Sync8BimProfile 处报错）；修复分配后 `memset(string_info->datum,0,length+MagickPathExtent)`，同一补丁也在 BlobToStringInfo 末尾补零。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "7a98246a075d55f2eb5bad40028a28f3cfdd97c1",
+        "upstream_date": "2018-02-10",
+        "file": "patches/resolved/7a98246a075d55f2eb5bad40028a28f3cfdd97c1.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "MagickCore/string.c",
+            "functions": [
+              "AcquireStringInfo",
+              "BlobToStringInfo",
+              "PrintStringInfo",
+              "SanitizeString"
+            ],
+            "hunks": [
+              {
+                "old_start": 182,
+                "old_lines": 6,
+                "new_start": 182,
+                "new_lines": 7
+              },
+              {
+                "old_start": 232,
+                "old_lines": 6,
+                "new_start": 233,
+                "new_lines": 7
+              },
+              {
+                "old_start": 247,
+                "old_lines": 7,
+                "new_start": 249,
+                "new_lines": 7
+              },
+              {
+                "old_start": 1565,
+                "old_lines": 7,
+                "new_start": 1567,
+                "new_lines": 7
+              },
+              {
+                "old_start": 1667,
+                "old_lines": 15,
+                "new_start": 1669,
+                "new_lines": 15
+              }
+            ]
+          }
+        ],
+        "lines_added": 7,
+        "lines_removed": 5
+      },
+      "fix_summary": "AcquireStringInfo：补齐缓冲区初始化/清零（+7/-5 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42527789",
+      "format": "MIFF",
+      "fuzz_target": "encoder_miff_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Stack-buffer-overflow READ 1",
+        "cwe": "CWE-125",
+        "cwe_name": "Out-of-bounds Read"
+      },
+      "location": {
+        "file": "MagickCore/color.c",
+        "line": 2385,
+        "function": "QueryColorCompliance",
+        "stack": [
+          "QueryColorCompliance",
+          "SetImageProperty",
+          "ReadMIFFImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/color.c",
+        "function": "QueryColorCompliance",
+        "line": 2385,
+        "before": "        colorspace[MagickPathExtent];",
+        "after": "        colorspace[MagickPathExtent+1];",
+        "diff": "@@ -2345,7 +2345,7 @@ MagickExport MagickBooleanType QueryColorCompliance(const char *name,\n   if (strchr(name,'(') != (char *) NULL)\n     {\n       char\n-        colorspace[MagickPathExtent];\n+        colorspace[MagickPathExtent+1];\n \n       MagickBooleanType\n         icc_color;"
+      },
+      "description": "`MagickCore/color.c:2385`（`QueryColorCompliance`）：`rgb(...)` 形式的颜色名在栈缓冲 colorspace(MagickPathExtent) 里逐字符解析，名字较长时读写越过缓冲区末尾（ASan 报 stack-buffer-overflow READ 1）；修复把缓冲扩到 2*MagickPathExtent，并在复制前 memset 清零。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "ff0cea4290cb1421cb174f2f26ca03789377a6fb",
+        "upstream_date": "2018-02-10",
+        "file": "patches/ff0cea4290cb1421cb174f2f26ca03789377a6fb.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "MagickCore/color.c",
+            "functions": [
+              "QueryColorCompliance"
+            ],
+            "hunks": [
+              {
+                "old_start": 2345,
+                "old_lines": 7,
+                "new_start": 2345,
+                "new_lines": 7
+              },
+              {
+                "old_start": 2353,
+                "old_lines": 6,
+                "new_start": 2353,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 1
+      },
+      "fix_summary": "QueryColorCompliance：补齐缓冲区初始化/清零（+2/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42528177",
+      "format": "MIFF",
+      "fuzz_target": "encoder_miff_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/color.c",
+        "line": 2385,
+        "function": "QueryColorCompliance",
+        "stack": [
+          "QueryColorCompliance",
+          "SetImageProperty",
+          "ReadMIFFImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/color.c",
+        "function": "QueryColorCompliance",
+        "line": 2385,
+        "before": "        colorspace[MagickPathExtent];",
+        "after": "        colorspace[2*MagickPathExtent];",
+        "diff": "@@ -2345,7 +2345,7 @@ MagickExport MagickBooleanType QueryColorCompliance(const char *name,\n   if (strchr(name,'(') != (char *) NULL)\n     {\n       char\n-        colorspace[MagickPathExtent];\n+        colorspace[2*MagickPathExtent];\n \n       MagickBooleanType\n         icc_color;"
+      },
+      "description": "`MagickCore/color.c:2385`（`QueryColorCompliance`）：`rgb(...)` 解析用的栈缓冲只有 MagickPathExtent 字节且未初始化，尾部未写全的字节在逐字符扫描时被当作字符串读取（MSan 未初始化值）；修复扩到 2*MagickPathExtent 并在复制前 memset 清零。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "557cb22f90e3543cca8414a1dfa074e0e026e4c3",
+        "upstream_date": "2018-02-12",
+        "file": "patches/resolved/557cb22f90e3543cca8414a1dfa074e0e026e4c3.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "MagickCore/color.c",
+            "functions": [
+              "QueryColorCompliance"
+            ],
+            "hunks": [
+              {
+                "old_start": 2345,
+                "old_lines": 7,
+                "new_start": 2345,
+                "new_lines": 7
+              },
+              {
+                "old_start": 2353,
+                "old_lines": 6,
+                "new_start": 2353,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 1
+      },
+      "fix_summary": "QueryColorCompliance：补齐缓冲区初始化/清零（+2/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42528200",
+      "format": "PCX",
+      "fuzz_target": "encoder_pcx_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/quantum.h",
+        "line": 116,
+        "function": "ScaleQuantumToChar",
+        "stack": [
+          "ScaleQuantumToChar",
+          "WritePCXImage",
+          "WriteImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/pcx.c",
+        "function": "ReadPCXImage",
+        "line": 418,
+        "before": "",
+        "after": "    (void) ResetMagickMemory(scanline,0,(size_t) MagickMax(image->columns,\n      pcx_info.bytes_per_line)*MagickMax(8,pcx_info.planes)*sizeof(*scanline));",
+        "diff": "@@ -418,6 +418,8 @@ static Image *ReadPCXImage(const ImageInfo *image_info,ExceptionInfo *exception)\n           pixel_info=RelinquishVirtualMemory(pixel_info);\n         ThrowPCXException(ResourceLimitError,\"MemoryAllocationFailed\");\n       }\n+    (void) ResetMagickMemory(scanline,0,(size_t) MagickMax(image->columns,\n+      pcx_info.bytes_per_line)*MagickMax(8,pcx_info.planes)*sizeof(*scanline));\n     pixels=(unsigned char *) GetVirtualMemoryBlob(pixel_info);\n     (void) ResetMagickMemory(pixels,0,(size_t) pcx_packets*(2*sizeof(*pixels)));\n     /*"
+      },
+      "description": "`coders/pcx.c:418`（`ReadPCXImage`）：scanline 缓冲分配后没有清零，RLE 解码未覆盖的字节保持未初始化并被当作颜色索引（MSan 在 ScaleQuantumToChar 处报错）；修复按 `MagickMax(columns,bytes_per_line)*MagickMax(8,planes)` 的长度清零 scanline。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "fda26c312b8d99e0cfaa82233741946c1206de81",
+        "upstream_date": "2018-02-12",
+        "file": "patches/fda26c312b8d99e0cfaa82233741946c1206de81.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/pcx.c",
+            "functions": [
+              "ReadPCXImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 418,
+                "old_lines": 6,
+                "new_start": 418,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadPCXImage：补齐缓冲区初始化/清零（+2/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42528610",
+      "format": "SUN",
+      "fuzz_target": "encoder_sun_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/quantum.h",
+        "line": 116,
+        "function": "ScaleQuantumToChar",
+        "stack": [
+          "ScaleQuantumToChar",
+          "WriteSUNImage",
+          "WriteImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/sun.c",
+        "function": "ReadSUNImage",
+        "line": 478,
+        "before": "    ResetMagickMemory(sun_pixels,0,pixels_length*sizeof(*sun_pixels));",
+        "after": "    (void) ResetMagickMemory(sun_pixels,0,(pixels_length+image->rows)*\n      sizeof(*sun_pixels));",
+        "diff": "@@ -478,7 +478,8 @@ static Image *ReadSUNImage(const ImageInfo *image_info,ExceptionInfo *exception)\n         sun_data=(unsigned char *) RelinquishMagickMemory(sun_data);\n         ThrowReaderException(ResourceLimitError,\"MemoryAllocationFailed\");\n       }\n-    ResetMagickMemory(sun_pixels,0,pixels_length*sizeof(*sun_pixels));\n+    (void) ResetMagickMemory(sun_pixels,0,(pixels_length+image->rows)*\n+      sizeof(*sun_pixels));\n     if (sun_info.type == RT_ENCODED)\n       {\n         status=DecodeImage(sun_data,sun_info.length,sun_pixels,pixels_length);"
+      },
+      "description": "`coders/sun.c:478`（`ReadSUNImage`）：sun_pixels 只清空了 pixels_length 字节，而后面的按行处理还会用到其后的 image->rows 个字节，这部分保持未初始化（MSan 在 ScaleQuantumToChar 处报错）；修复把清零长度扩到 `(pixels_length+image->rows)*sizeof(*sun_pixels)`。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "5960b92b652b51cc53852e7ba3c9b65abceb0452",
+        "upstream_date": "2018-02-13",
+        "file": "patches/5960b92b652b51cc53852e7ba3c9b65abceb0452.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/sun.c",
+            "functions": [
+              "ReadSUNImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 478,
+                "old_lines": 7,
+                "new_start": 478,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 1
+      },
+      "fix_summary": "ReadSUNImage：补齐缓冲区初始化/清零（+2/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42529799",
+      "format": "MIFF",
+      "fuzz_target": "encoder_miff_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "coders/miff.c",
+        "line": 2147,
+        "function": "WriteMIFFImage",
+        "stack": [
+          "WriteMIFFImage",
+          "WriteImage",
+          "WriteImages"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/property.c",
+        "function": "SetImageProperty",
+        "line": 4165,
+        "before": "          image->resolution.x=geometry_info.rho;\n          image->resolution.y=geometry_info.sigma;\n          if ((flags & SigmaValue) == 0)\n            image->resolution.y=image->resolution.x;",
+        "after": "          if ((flags & RhoValue) != 0)\n            image->resolution.x=geometry_info.rho;\n          image->resolution.y=image->resolution.x;\n          if ((flags & SigmaValue) != 0)\n            image->resolution.y=geometry_info.sigma;",
+        "diff": "@@ -4165,10 +4165,11 @@ MagickExport MagickBooleanType SetImageProperty(Image *image,\n             geometry_info;\n \n           flags=ParseGeometry(value,&geometry_info);\n-          image->resolution.x=geometry_info.rho;\n-          image->resolution.y=geometry_info.sigma;\n-          if ((flags & SigmaValue) == 0)\n-            image->resolution.y=image->resolution.x;\n+          if ((flags & RhoValue) != 0)\n+            image->resolution.x=geometry_info.rho;\n+          image->resolution.y=image->resolution.x;\n+          if ((flags & SigmaValue) != 0)\n+            image->resolution.y=geometry_info.sigma;\n           return(MagickTrue);\n         }\n       if (LocaleCompare(\"depth\",property) == 0)"
+      },
+      "description": "`MagickCore/property.c:4165`（`SetImageProperty`）：设置 density 类属性时直接取 geometry_info.rho/sigma，字符串里没有对应分量时读到未初始化的 sigma 并写进 image->resolution（MSan 报 WriteMIFFImage 处使用未初始化值）；修复只在 flags 含 RhoValue/SigmaValue 时取值，sigma 缺省时沿用已设好的 x。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "56a19e7ae07f40299f3afd4994d690f2c9b81993",
+        "upstream_date": "2018-02-15",
+        "file": "patches/56a19e7ae07f40299f3afd4994d690f2c9b81993.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "MagickCore/property.c",
+            "functions": [
+              "SetImageProperty"
+            ],
+            "hunks": [
+              {
+                "old_start": 4165,
+                "old_lines": 10,
+                "new_start": 4165,
+                "new_lines": 11
+              }
+            ]
+          }
+        ],
+        "lines_added": 5,
+        "lines_removed": 4
+      },
+      "fix_summary": "SetImageProperty：调整相关实现（+5/-4 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42522269",
+      "format": "WBMP",
+      "fuzz_target": "encoder_wbmp_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "coders/wbmp.c",
+        "line": 164,
+        "function": "ReadWBMPImage",
+        "stack": [
+          "ReadWBMPImage",
+          "ReadImage",
+          "BlobToImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/wbmp.c",
+        "function": "ReadWBMPImage",
+        "line": 164,
+        "before": "",
+        "after": "  header=0;",
+        "diff": "@@ -159,6 +159,7 @@ static Image *ReadWBMPImage(const ImageInfo *image_info,\n       image=DestroyImageList(image);\n       return((Image *) NULL);\n     }\n+  header=0;\n   if (ReadBlob(image,2,(unsigned char *) &header) == 0)\n     ThrowReaderException(CorruptImageError,\"ImproperImageHeader\");\n   if (header != 0)"
+      },
+      "description": "`coders/wbmp.c:159`（`ReadWBMPImage`）：局部 header 未初始化，ReadBlob 返回 0（文件为空）时仍用未初始化的 header 做格式校验和后续解析（MSan 未初始化值）；修复在读之前把 `header=0`。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "21e1ac88739dbf99be45782de0dc299b162fcdf5",
+        "upstream_date": "2018-02-18",
+        "file": "patches/21e1ac88739dbf99be45782de0dc299b162fcdf5.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/wbmp.c",
+            "functions": [
+              "ReadWBMPImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 159,
+                "old_lines": 6,
+                "new_start": 159,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadWBMPImage：调整相关实现（+1/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42530943",
+      "format": "MVG",
+      "fuzz_target": "encoder_mvg_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Heap-buffer-overflow WRITE 8",
+        "cwe": "CWE-787",
+        "cwe_name": "Out-of-bounds Write"
+      },
+      "location": {
+        "file": "MagickCore/draw.c",
+        "line": 1666,
+        "function": "TracePoint",
+        "stack": [
+          "TracePoint",
+          "TraceBezier",
+          "TracePath"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/draw.c",
+        "function": "TracePoint",
+        "line": 1666,
+        "before": "  number_points=6553;",
+        "after": "  number_points=8192;",
+        "diff": "@@ -1770,7 +1770,7 @@ MagickExport MagickBooleanType DrawImage(Image *image,const DrawInfo *draw_info,\n       ThrowBinaryException(ResourceLimitError,\"MemoryAllocationFailed\",\n         image->filename);\n     }\n-  number_points=6553;\n+  number_points=8192;\n   primitive_info=(PrimitiveInfo *) AcquireQuantumMemory((size_t) number_points,\n     sizeof(*primitive_info));\n   if (primitive_info == (PrimitiveInfo *) NULL)"
+      },
+      "description": "`MagickCore/draw.c:1770`（`DrawImage`）：primitive_info 的初始容量写死为 6553 点，MVG 图元在首次扩容前就可能写超过该点数，造成堆越界写（崩溃点在 TracePoint）；修复把初始容量提高到 8192。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "b78a613f16150d6db3b055731211f467756bc412",
+        "upstream_date": "2018-02-21",
+        "file": "patches/resolved/b78a613f16150d6db3b055731211f467756bc412.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "MagickCore/draw.c",
+            "functions": [
+              "DrawImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 1770,
+                "old_lines": 7,
+                "new_start": 1770,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 1
+      },
+      "fix_summary": "DrawImage：增加边界或长度校验（+1/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42530977",
+      "format": "HDR",
+      "fuzz_target": "encoder_hdr_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "coders/hdr.c",
+        "line": 485,
+        "function": "ReadHDRImage",
+        "stack": [
+          "ReadHDRImage",
+          "ReadImage",
+          "BlobToImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/hdr.c",
+        "function": "ReadHDRImage",
+        "line": 485,
+        "before": "",
+        "after": "  (void) ResetMagickMemory(pixels,0,4*image->columns*sizeof(*pixels));",
+        "diff": "@@ -403,6 +403,7 @@ static Image *ReadHDRImage(const ImageInfo *image_info,ExceptionInfo *exception)\n     sizeof(*pixels));\n   if (pixels == (unsigned char *) NULL)\n     ThrowReaderException(ResourceLimitError,\"MemoryAllocationFailed\");\n+  (void) ResetMagickMemory(pixels,0,4*image->columns*sizeof(*pixels));\n   for (y=0; y < (ssize_t) image->rows; y++)\n   {\n     if (image->compression != RLECompression)"
+      },
+      "description": "`coders/hdr.c:403`（`ReadHDRImage`）：行缓冲 pixels 按 4*columns 分配后未清零，RLE 解码没填满整行时残留的 RGBE 分量保持未初始化（MSan 在 ReadHDRImage 处报错）；修复分配后 ResetMagickMemory 清零 4*columns 字节。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "686c45509c81d3ecae9cdb34225689b3be97de55",
+        "upstream_date": "2018-02-21",
+        "file": "patches/resolved/686c45509c81d3ecae9cdb34225689b3be97de55.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "coders/hdr.c",
+            "functions": [
+              "ReadHDRImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 403,
+                "old_lines": 6,
+                "new_start": 403,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadHDRImage：补齐缓冲区初始化/清零（+1/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42531054",
+      "format": "MIFF",
+      "fuzz_target": "encoder_miff_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "coders/miff.c",
+        "line": 2240,
+        "function": "WriteMIFFImage",
+        "stack": [
+          "WriteMIFFImage",
+          "WriteImage",
+          "WriteImages"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/miff.c",
+        "function": "WriteMIFFImage",
+        "line": 2240,
+        "before": "",
+        "after": "    SetGeometryInfo(&geometry_info);",
+        "diff": "@@ -517,6 +517,7 @@ static Image *ReadMIFFImage(const ImageInfo *image_info,\n     /*\n       Decode image header;  header terminates one character beyond a ':'.\n     */\n+    SetGeometryInfo(&geometry_info);\n     length=MagickPathExtent;\n     options=AcquireString((char *) NULL);\n     quantum_format=UndefinedQuantumFormat;"
+      },
+      "description": "`coders/miff.c:517`（`ReadMIFFImage`）：geometry_info 局部变量未初始化就交给后续头部字段（分辨率等）解析使用，最终编码时把未初始化值写进输出（MSan 报 WriteMIFFImage 处使用未初始化值）；修复在解析头部前调用 SetGeometryInfo(&geometry_info)。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "bf04de5d0e66f630dd0c184b478a299854f2d032",
+        "upstream_date": "2018-02-21",
+        "file": "patches/bf04de5d0e66f630dd0c184b478a299854f2d032.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/miff.c",
+            "functions": [
+              "ReadMIFFImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 517,
+                "old_lines": 6,
+                "new_start": 517,
+                "new_lines": 7
+              }
+            ]
+          },
+          {
+            "path": "coders/mpc.c",
+            "functions": [
+              "ReadMPCImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 220,
+                "old_lines": 6,
+                "new_start": 220,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadMIFFImage：调整相关实现（+2/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42531466",
+      "format": "DCM",
+      "fuzz_target": "encoder_dcm_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Heap-buffer-overflow READ 4",
+        "cwe": "CWE-125",
+        "cwe_name": "Out-of-bounds Read"
+      },
+      "location": {
+        "file": "coders/dcm.c",
+        "line": 3964,
+        "function": "ReadDCMImage",
+        "stack": [
+          "ReadDCMImage",
+          "ReadImage",
+          "BlobToImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/dcm.c",
+        "function": "ReadDCMImage",
+        "line": 3964,
+        "before": "            if ((info.scale != (Quantum *) NULL) &&",
+        "after": "            if ((info.scale != (Quantum *) NULL) && (index >= 0) &&",
+        "diff": "@@ -3972,7 +3972,7 @@ static Image *ReadDCMImage(const ImageInfo *image_info,ExceptionInfo *exception)\n           for (i=0; i < (ssize_t) colors; i++)\n           {\n             index=redmap[i];\n-            if ((info.scale != (Quantum *) NULL) &&\n+            if ((info.scale != (Quantum *) NULL) && (index >= 0) &&\n                 (index <= (int) info.max_value))\n               index=(int) info.scale[index];\n             image->colormap[i].red=(MagickRealType) index;"
+      },
+      "description": "`coders/dcm.c:3972`（`ReadDCMImage`）：colormap 映射时只判断 `index <= info.max_value`，redmap[i]/graymap[i] 里的负值仍会执行 `info.scale[index]`，向前越界读（heap-buffer-overflow READ 4）；修复增加 `index >= 0` 的下界判断。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "e79350c54735fd1051bd0b153ef277a13a7b9618",
+        "upstream_date": "2018-02-24",
+        "file": "patches/e79350c54735fd1051bd0b153ef277a13a7b9618.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/dcm.c",
+            "functions": [
+              "ReadDCMImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 3972,
+                "old_lines": 7,
+                "new_start": 3972,
+                "new_lines": 7
+              },
+              {
+                "old_start": 3981,
+                "old_lines": 7,
+                "new_start": 3981,
+                "new_lines": 7
+              },
+              {
+                "old_start": 3990,
+                "old_lines": 7,
+                "new_start": 3990,
+                "new_lines": 7
+              },
+              {
+                "old_start": 3999,
+                "old_lines": 7,
+                "new_start": 3999,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 4,
+        "lines_removed": 4
+      },
+      "fix_summary": "ReadDCMImage：增加边界或长度校验（+4/-4 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42532777",
+      "format": "SCR",
+      "fuzz_target": "encoder_scr_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "coders/scr.c",
+        "line": 232,
+        "function": "ReadSCRImage",
+        "stack": [
+          "ReadSCRImage",
+          "ReadImage",
+          "BlobToImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/scr.c",
+        "function": "ReadSCRImage",
+        "line": 232,
+        "before": "  (void) count;",
+        "after": "  if (count != 6144)\n    ThrowReaderException(CorruptImageError,\"ImproperImageHeader\");\n  if (count != 768)\n    ThrowReaderException(CorruptImageError,\"ImproperImageHeader\");",
+        "diff": "@@ -160,8 +160,11 @@ static Image *ReadSCRImage(const ImageInfo *image_info,ExceptionInfo *exception)\n   if (status == MagickFalse)\n     return(DestroyImageList(image));\n   count=ReadBlob(image,6144,(unsigned char *) zxscr);\n-  (void) count;\n+  if (count != 6144)\n+    ThrowReaderException(CorruptImageError,\"ImproperImageHeader\");\n   count=ReadBlob(image,768,(unsigned char *) zxattr);\n+  if (count != 768)\n+    ThrowReaderException(CorruptImageError,\"ImproperImageHeader\");\n   for(zonenr=0;zonenr<3;zonenr++)\n   {\n       for(zoneline=0;zoneline<8;zoneline++)"
+      },
+      "description": "`coders/scr.c:232`（`ReadSCRImage`）：读 6144 字节屏幕区和 768 字节属性区时丢弃 ReadBlob 的返回值，文件短于该长度时 zxscr/zxattr 大部分保持未初始化，随后被当作像素和属性使用（MSan 未初始化值）；修复两处都检查返回值，读不满即抛 CorruptImageError。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "164af31c8d4d5afd0a5a6a7e27078b5d579adc56",
+        "upstream_date": "2018-03-02",
+        "file": "patches/164af31c8d4d5afd0a5a6a7e27078b5d579adc56.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/scr.c",
+            "functions": [
+              "ReadSCRImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 160,
+                "old_lines": 8,
+                "new_start": 160,
+                "new_lines": 11
+              }
+            ]
+          }
+        ],
+        "lines_added": 4,
+        "lines_removed": 1
+      },
+      "fix_summary": "ReadSCRImage：调整相关实现（+4/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42523502",
+      "format": "VIFF",
+      "fuzz_target": "encoder_viff_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/image.c",
+        "line": 3700,
+        "function": "PushColormapIndex",
+        "stack": [
+          "PushColormapIndex",
+          "SyncImage",
+          "ReadVIFFImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/viff.c",
+        "function": "ReadVIFFImage",
+        "line": 519,
+        "before": "",
+        "after": "    (void) ResetMagickMemory(pixels,0,MagickMax(number_pixels,max_packets)*\n      bytes_per_pixel*sizeof(*pixels));",
+        "diff": "@@ -519,6 +519,8 @@ static Image *ReadVIFFImage(const ImageInfo *image_info,\n       number_pixels,max_packets),bytes_per_pixel*sizeof(*pixels));\n     if (pixels == (unsigned char *) NULL)\n       ThrowReaderException(ResourceLimitError,\"MemoryAllocationFailed\");\n+    (void) ResetMagickMemory(pixels,0,MagickMax(number_pixels,max_packets)*\n+      bytes_per_pixel*sizeof(*pixels));\n     count=ReadBlob(image,bytes_per_pixel*max_packets,pixels);\n     lsb_first=1;\n     if (*(char *) &lsb_first &&"
+      },
+      "description": "`coders/viff.c:519`（`ReadVIFFImage`）：pixels 缓冲按 MagickMax(number_pixels,max_packets)*bytes_per_pixel 分配但未清零，ReadBlob 读不满时未初始化字节进入像素计算（MSan 在 PushColormapIndex 处报错）；修复分配后清零整块缓冲区。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "60cb93d03a9fec83087f803fab877293f1ca12fd",
+        "upstream_date": "2018-03-03",
+        "file": "patches/60cb93d03a9fec83087f803fab877293f1ca12fd.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/viff.c",
+            "functions": [
+              "ReadVIFFImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 519,
+                "old_lines": 6,
+                "new_start": 519,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadVIFFImage：补齐缓冲区初始化/清零（+2/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42533154",
+      "format": "VIFF",
+      "fuzz_target": "encoder_viff_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "coders/viff.c",
+        "line": 571,
+        "function": "ReadVIFFImage",
+        "stack": [
+          "ReadVIFFImage",
+          "ReadImage",
+          "BlobToImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/viff.c",
+        "function": "ReadVIFFImage",
+        "line": 571,
+        "before": "",
+        "after": "    (void) ResetMagickMemory(pixels,0,MagickMax(number_pixels,max_packets)*\n      bytes_per_pixel*sizeof(*pixels));",
+        "diff": "@@ -519,6 +519,8 @@ static Image *ReadVIFFImage(const ImageInfo *image_info,\n       number_pixels,max_packets),bytes_per_pixel*sizeof(*pixels));\n     if (pixels == (unsigned char *) NULL)\n       ThrowReaderException(ResourceLimitError,\"MemoryAllocationFailed\");\n+    (void) ResetMagickMemory(pixels,0,MagickMax(number_pixels,max_packets)*\n+      bytes_per_pixel*sizeof(*pixels));\n     count=ReadBlob(image,bytes_per_pixel*max_packets,pixels);\n     lsb_first=1;\n     if (*(char *) &lsb_first &&"
+      },
+      "description": "`coders/viff.c:519`（`ReadVIFFImage`）：pixels 缓冲未初始化就用 ReadBlob 填充，图像数据不足时残留字节被当作调色板索引使用（MSan 未初始化值，崩溃点在 ReadVIFFImage:571）；修复分配后按 MagickMax(number_pixels,max_packets)*bytes_per_pixel 清零。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "60cb93d03a9fec83087f803fab877293f1ca12fd",
+        "upstream_date": "2018-03-03",
+        "file": "patches/60cb93d03a9fec83087f803fab877293f1ca12fd.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/viff.c",
+            "functions": [
+              "ReadVIFFImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 519,
+                "old_lines": 6,
+                "new_start": 519,
+                "new_lines": 8
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadVIFFImage：补齐缓冲区初始化/清零（+2/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42522303",
+      "format": "WPG",
+      "fuzz_target": "encoder_wpg_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/pixel-accessor.h",
+        "line": 783,
+        "function": "SetPixelViaPixelInfo",
+        "stack": [
+          "SetPixelViaPixelInfo",
+          "InsertRow",
+          "UnpackWPGRaster"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/wpg.c",
+        "function": "UnpackWPGRaster",
+        "line": 446,
+        "before": "",
+        "after": "  (void) ResetMagickMemory(BImgBuff,0,(size_t) ldblk*8*sizeof(*BImgBuff));",
+        "diff": "@@ -446,6 +446,7 @@ static int UnpackWPGRaster(Image *image,int bpp,ExceptionInfo *exception)\n   BImgBuff=(unsigned char *) AcquireQuantumMemory((size_t) ldblk,\n     8*sizeof(*BImgBuff));\n   if(BImgBuff==NULL) return(-2);\n+  (void) ResetMagickMemory(BImgBuff,0,(size_t) ldblk*8*sizeof(*BImgBuff));\n \n   while(y<(ssize_t) image->rows)\n     {"
+      },
+      "description": "`coders/wpg.c:446`（`UnpackWPGRaster`）：BImgBuff 按 ldblk*8 分配后未清零，RLE 解包不足一行时未初始化字节被当作调色板索引写入像素（MSan 在 SetPixelViaPixelInfo 处报错）；修复分配后 ResetMagickMemory 清零该缓冲。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "ce433f8048b120b2a0413b4ac3ef59fca35a9788",
+        "upstream_date": "2018-03-04",
+        "file": "patches/ce433f8048b120b2a0413b4ac3ef59fca35a9788.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/wpg.c",
+            "functions": [
+              "UnpackWPGRaster"
+            ],
+            "hunks": [
+              {
+                "old_start": 446,
+                "old_lines": 6,
+                "new_start": 446,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 0
+      },
+      "fix_summary": "UnpackWPGRaster：补齐缓冲区初始化/清零（+1/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42525613",
+      "format": "PSD",
+      "fuzz_target": "encoder_psd_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/quantum-private.h",
+        "line": 504,
+        "function": "ScaleQuantumToShort",
+        "stack": [
+          "ScaleQuantumToShort",
+          "ExportAlphaQuantum",
+          "ExportQuantumPixels"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/psd.c",
+        "function": "ReadPSDMergedImage",
+        "line": 1949,
+        "before": "      status=ReadPSDChannelRLE(image,psd_info,i,sizes+(i*image->rows),\n      status=ReadPSDChannelRaw(image,psd_info->channels,i,exception);",
+        "after": "    ssize_t\n      type;\n\n    type=i;\n    if ((type == 1) && (psd_info->channels == 2))\n      type=-1;\n\n      status=ReadPSDChannelRLE(image,psd_info,type,sizes+(i*image->rows),\n      status=ReadPSDChannelRaw(image,psd_info->channels,type,exception);",
+        "diff": "@@ -1949,11 +1949,18 @@ static MagickBooleanType ReadPSDMergedImage(const ImageInfo *image_info,\n   status=MagickTrue;\n   for (i=0; i < (ssize_t) psd_info->channels; i++)\n   {\n+    ssize_t\n+      type;\n+\n+    type=i;\n+    if ((type == 1) && (psd_info->channels == 2))\n+      type=-1;\n+\n     if (compression == RLE)\n-      status=ReadPSDChannelRLE(image,psd_info,i,sizes+(i*image->rows),\n+      status=ReadPSDChannelRLE(image,psd_info,type,sizes+(i*image->rows),\n         exception);\n     else\n-      status=ReadPSDChannelRaw(image,psd_info->channels,i,exception);\n+      status=ReadPSDChannelRaw(image,psd_info->channels,type,exception);\n \n     if (status != MagickFalse)\n       status=SetImageProgress(image,LoadImagesTag,i,psd_info->channels);"
+      },
+      "description": "`coders/psd.c:1949`（`ReadPSDMergedImage`）：双通道（channels==2）合并图把第二个通道按普通通道索引传给 ReadPSDChannelRLE/ReadPSDChannelRaw，通道数据错位后读到未初始化的通道缓冲（MSan 在 ScaleQuantumToShort 处报错）；修复当 channels==2 时把该通道的 type 置为 -1，按 alpha 通道处理。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "79de802e7586ab4339b7b81e3d3501d5fcffd57a",
+        "upstream_date": "2018-03-04",
+        "file": "patches/resolved/79de802e7586ab4339b7b81e3d3501d5fcffd57a.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "coders/psd.c",
+            "functions": [
+              "ReadPSDMergedImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 1949,
+                "old_lines": 11,
+                "new_start": 1949,
+                "new_lines": 18
+              }
+            ]
+          }
+        ],
+        "lines_added": 9,
+        "lines_removed": 2
+      },
+      "fix_summary": "ReadPSDMergedImage：调整相关实现（+9/-2 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42533821",
+      "format": "MIFF",
+      "fuzz_target": "encoder_miff_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/quantum.h",
+        "line": 116,
+        "function": "ScaleQuantumToChar",
+        "stack": [
+          "ScaleQuantumToChar",
+          "ExportRGBAQuantum",
+          "ExportQuantumPixels"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/miff.c",
+        "function": "ReadMIFFImage",
+        "line": 1249,
+        "before": "",
+        "after": "    (void) SetImageBackgroundColor(image,exception);",
+        "diff": "@@ -1249,6 +1249,7 @@ static Image *ReadMIFFImage(const ImageInfo *image_info,\n     status=SetImageExtent(image,image->columns,image->rows,exception);\n     if (status == MagickFalse)\n       return(DestroyImageList(image));\n+    (void) SetImageBackgroundColor(image,exception);\n     /*\n       Allocate image pixels.\n     */"
+      },
+      "description": "`coders/miff.c:1249`（`ReadMIFFImage`）：SetImageExtent 之后没有初始化像素缓存，MIFF 数据未覆盖的像素保持未初始化值（MSan 在 ScaleQuantumToChar 处报错）；修复立即调用 SetImageBackgroundColor。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "11c7f47df7cbe2e672c8a975aa1c003d92f4fdc9",
+        "upstream_date": "2018-03-05",
+        "file": "patches/resolved/11c7f47df7cbe2e672c8a975aa1c003d92f4fdc9.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "coders/miff.c",
+            "functions": [
+              "ReadMIFFImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 1249,
+                "old_lines": 6,
+                "new_start": 1249,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadMIFFImage：补齐缓冲区初始化/清零（+1/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42518438",
+      "format": "CIN",
+      "fuzz_target": "encoder_cin_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Heap-buffer-overflow READ 1",
+        "cwe": "CWE-125",
+        "cwe_name": "Out-of-bounds Read"
+      },
+      "location": {
+        "file": "MagickCore/quantum-import.c",
+        "line": 4189,
+        "function": "ImportQuantumPixels",
+        "stack": [
+          "PushLongPixel",
+          "ImportGrayQuantum",
+          "ImportQuantumPixels"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/quantum-import.c",
+        "function": "ImportQuantumPixels",
+        "line": 4189,
+        "before": "          p=PushLongPixel(quantum_info->endian,p,&pixel);",
+        "after": "              p=PushLongPixel(quantum_info->endian,p,&pixel);",
+        "diff": "@@ -2159,9 +2159,9 @@ static void ImportGrayQuantum(const Image *image,QuantumInfo *quantum_info,\n             p+=quantum_info->pad;\n             q+=GetPixelChannels(image);\n           }\n-          p=PushLongPixel(quantum_info->endian,p,&pixel);\n           if (x++ < (ssize_t) (number_pixels-1))\n             {\n+              p=PushLongPixel(quantum_info->endian,p,&pixel);\n               SetPixelGray(image,ScaleAnyToQuantum((pixel >> 2) & 0x3ff,\n                 range),q);\n               q+=GetPixelChannels(image);"
+      },
+      "description": "`MagickCore/quantum-import.c:2159`（`ImportGrayQuantum`）：循环里先读 4 字节再判断 `x < number_pixels-1`，最后一个像素之后仍执行 PushLongPixel，越过输入缓冲末尾读取（heap-buffer-overflow READ 1，崩溃点内联在 ImportQuantumPixels）；修复把 PushLongPixel 移进 `x++ < number_pixels-1` 分支内。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "9998cd719775e90f9989fd1ecaa84647a56c1b57",
+        "upstream_date": "2018-03-06",
+        "file": "patches/9998cd719775e90f9989fd1ecaa84647a56c1b57.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "MagickCore/quantum-import.c",
+            "functions": [
+              "ImportGrayQuantum"
+            ],
+            "hunks": [
+              {
+                "old_start": 2159,
+                "old_lines": 9,
+                "new_start": 2159,
+                "new_lines": 9
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 1
+      },
+      "fix_summary": "ImportGrayQuantum：增加边界或长度校验（+1/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42533954",
+      "format": "PCDS",
+      "fuzz_target": "encoder_pcds_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/pixel-accessor.h",
+        "line": 37,
+        "function": "ClampPixel",
+        "stack": [
+          "ClampPixel",
+          "CompositeOverImage",
+          "CompositeImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/pcd.c",
+        "function": "ReadPCDImage",
+        "line": 589,
+        "before": "",
+        "after": "  if (status == MagickFalse)\n    return(DestroyImageList(image));\n  status=ResetImagePixels(image,exception);",
+        "diff": "@@ -589,6 +589,9 @@ static Image *ReadPCDImage(const ImageInfo *image_info,ExceptionInfo *exception)\n     image->rows<<=1;\n   }\n   status=SetImageExtent(image,image->columns,image->rows,exception);\n+  if (status == MagickFalse)\n+    return(DestroyImageList(image));\n+  status=ResetImagePixels(image,exception);\n   if (status == MagickFalse)\n     return(DestroyImageList(image));\n   /*"
+      },
+      "description": "`coders/pcd.c:589`（`ReadPCDImage`）：SetImageExtent 之后既不检查返回值也不初始化像素，PCD 数据未覆盖的区域保持未初始化值（MSan 在 ClampPixel 处报错）；修复补上 status 判断并调用 ResetImagePixels。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "2cf74b529c34f2e5915c946e2f4a06f4c292f4c8",
+        "upstream_date": "2018-03-06",
+        "file": "patches/2cf74b529c34f2e5915c946e2f4a06f4c292f4c8.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/pcd.c",
+            "functions": [
+              "ReadPCDImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 589,
+                "old_lines": 6,
+                "new_start": 589,
+                "new_lines": 9
+              }
+            ]
+          }
+        ],
+        "lines_added": 3,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadPCDImage：补齐缓冲区初始化/清零（+3/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "same pixels"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42533966",
+      "format": "MAC",
+      "fuzz_target": "encoder_mac_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/image.c",
+        "line": 3700,
+        "function": "PushColormapIndex",
+        "stack": [
+          "PushColormapIndex",
+          "SyncImage",
+          "ReadMACImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/mac.c",
+        "function": "ReadMACImage",
+        "line": 154,
+        "before": "",
+        "after": "  if (status == MagickFalse)\n    return(DestroyImageList(image));\n  status=ResetImagePixels(image,exception);",
+        "diff": "@@ -154,6 +154,9 @@ static Image *ReadMACImage(const ImageInfo *image_info,ExceptionInfo *exception)\n       return(GetFirstImageInList(image));\n     }\n   status=SetImageExtent(image,image->columns,image->rows,exception);\n+  if (status == MagickFalse)\n+    return(DestroyImageList(image));\n+  status=ResetImagePixels(image,exception);\n   if (status == MagickFalse)\n     return(DestroyImageList(image));\n   /*"
+      },
+      "description": "`coders/mac.c:154`（`ReadMACImage`）：只设了 columns/rows 就按索引写像素，既未调用 SetImageExtent 建立缓存也未初始化，写的是未初始化的像素区域（MSan 在 PushColormapIndex 处报错）；修复补上 SetImageExtent 与 ResetImagePixels，并检查返回值。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "990431dbe7688861ad46a7b8d6cb9d173b429cbd",
+        "upstream_date": "2018-03-06",
+        "file": "patches/990431dbe7688861ad46a7b8d6cb9d173b429cbd.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/mac.c",
+            "functions": [
+              "ReadMACImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 154,
+                "old_lines": 6,
+                "new_start": 154,
+                "new_lines": 9
+              }
+            ]
+          }
+        ],
+        "lines_added": 3,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadMACImage：补齐缓冲区初始化/清零（+3/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42534188",
+      "format": "WPG",
+      "fuzz_target": "encoder_wpg_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "./MagickCore/colormap-private.h",
+        "line": 32,
+        "function": "ConstrainColormapIndex",
+        "stack": [
+          "ConstrainColormapIndex",
+          "InsertRow",
+          "UnpackWPG2Raster"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/wpg.c",
+        "function": "UnpackWPG2Raster",
+        "line": 565,
+        "before": "",
+        "after": "  (void) ResetMagickMemory(BImgBuff,0,ldblk*sizeof(*BImgBuff));",
+        "diff": "@@ -565,6 +565,7 @@ static int UnpackWPG2Raster(Image *image,int bpp,ExceptionInfo *exception)\n     sizeof(*BImgBuff));\n   if(BImgBuff==NULL)\n     return(-2);\n+  (void) ResetMagickMemory(BImgBuff,0,ldblk*sizeof(*BImgBuff));\n \n   while( y< image->rows)\n     {"
+      },
+      "description": "`coders/wpg.c:565`（`UnpackWPG2Raster`）：BImgBuff 按 ldblk 分配后未清零，解包数据不足一行时未初始化字节被当作调色板索引（MSan 在 ConstrainColormapIndex 处报错）；修复分配后 `ResetMagickMemory(BImgBuff,0,ldblk*sizeof(*BImgBuff))`。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "a85ab26099152be3dab0bd377670abfc815b9fe7",
+        "upstream_date": "2018-03-07",
+        "file": "patches/a85ab26099152be3dab0bd377670abfc815b9fe7.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/wpg.c",
+            "functions": [
+              "UnpackWPG2Raster"
+            ],
+            "hunks": [
+              {
+                "old_start": 565,
+                "old_lines": 6,
+                "new_start": 565,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 0
+      },
+      "fix_summary": "UnpackWPG2Raster：补齐缓冲区初始化/清零（+1/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42534522",
+      "format": "TIM",
+      "fuzz_target": "encoder_tim_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/image.c",
+        "line": 3700,
+        "function": "PushColormapIndex",
+        "stack": [
+          "PushColormapIndex",
+          "SyncImage",
+          "ReadTIMImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/tim.c",
+        "function": "ReadTIMImage",
+        "line": 252,
+        "before": "",
+        "after": "    status=SetImageExtent(image,image->columns,image->rows,exception);\n    if (status == MagickFalse)\n      return(DestroyImageList(image));\n    status=ResetImagePixels(image,exception);\n    if (status == MagickFalse)\n      return(DestroyImageList(image));",
+        "diff": "@@ -252,6 +252,12 @@ static Image *ReadTIMImage(const ImageInfo *image_info,ExceptionInfo *exception)\n     */\n     image->columns=width;\n     image->rows=height;\n+    status=SetImageExtent(image,image->columns,image->rows,exception);\n+    if (status == MagickFalse)\n+      return(DestroyImageList(image));\n+    status=ResetImagePixels(image,exception);\n+    if (status == MagickFalse)\n+      return(DestroyImageList(image));\n     /*\n       Convert TIM raster image to pixel packets.\n     */"
+      },
+      "description": "`coders/tim.c:252`（`ReadTIMImage`）：只给 columns/rows 赋值，未调用 SetImageExtent 也未初始化像素缓存，随后按索引写像素时落在未初始化区域（MSan 在 PushColormapIndex 处报错）；修复在转换像素前补上 SetImageExtent 与 ResetImagePixels。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "f472c0ae74c136284adbbcfe25f628be2da8a02b",
+        "upstream_date": "2018-03-09",
+        "file": "patches/resolved/f472c0ae74c136284adbbcfe25f628be2da8a02b.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "coders/tim.c",
+            "functions": [
+              "ReadTIMImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 252,
+                "old_lines": 6,
+                "new_start": 252,
+                "new_lines": 12
+              }
+            ]
+          }
+        ],
+        "lines_added": 6,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadTIMImage：补齐缓冲区初始化/清零（+6/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42534621",
+      "format": "PDB",
+      "fuzz_target": "encoder_pdb_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/image.c",
+        "line": 3700,
+        "function": "PushColormapIndex",
+        "stack": [
+          "PushColormapIndex",
+          "SyncImage",
+          "ReadPDBImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/pdb.c",
+        "function": "ReadPDBImage",
+        "line": 420,
+        "before": "",
+        "after": "  (void) ResetMagickMemory(pixels,0,(packets+257UL)*image->rows*sizeof(*pixels));",
+        "diff": "@@ -420,6 +420,7 @@ static Image *ReadPDBImage(const ImageInfo *image_info,ExceptionInfo *exception)\n     sizeof(*pixels));\n   if (pixels == (unsigned char *) NULL)\n     ThrowReaderException(ResourceLimitError,\"MemoryAllocationFailed\");\n+  (void) ResetMagickMemory(pixels,0,(packets+257UL)*image->rows*sizeof(*pixels));\n   switch (pdb_image.version & 0x07) \n   {\n     case 0:"
+      },
+      "description": "`coders/pdb.c:420`（`ReadPDBImage`）：像素缓冲按 (packets+257)*rows 分配但未清零，行解码不足时未初始化字节被当作颜色索引（MSan 在 PushColormapIndex 处报错）；修复分配后 ResetMagickMemory 清零整块。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "0100b8013536d7836566642d69d521fba1d15cf6",
+        "upstream_date": "2018-03-10",
+        "file": "patches/0100b8013536d7836566642d69d521fba1d15cf6.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/pdb.c",
+            "functions": [
+              "ReadPDBImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 420,
+                "old_lines": 6,
+                "new_start": 420,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 0
+      },
+      "fix_summary": "ReadPDBImage：补齐缓冲区初始化/清零（+1/-0 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42534921",
+      "format": "MVG",
+      "fuzz_target": "encoder_mvg_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Heap-buffer-overflow WRITE {*}",
+        "cwe": "CWE-787",
+        "cwe_name": "Out-of-bounds Write"
+      },
+      "location": {
+        "file": "MagickCore/draw.c",
+        "line": 1603,
+        "function": "DrawDashPolygon",
+        "stack": [
+          "__asan_memcpy",
+          "DrawDashPolygon",
+          "DrawPrimitive"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/draw.c",
+        "function": "DrawDashPolygon",
+        "line": 1603,
+        "before": "    (2UL*number_vertices+1UL),sizeof(*dash_polygon));",
+        "after": "    (2UL*(number_vertices+1UL)+1UL),sizeof(*dash_polygon));",
+        "diff": "@@ -1520,7 +1520,7 @@ static MagickBooleanType DrawDashPolygon(const DrawInfo *draw_info,\n   for (i=0; primitive_info[i].primitive != UndefinedPrimitive; i++) ;\n   number_vertices=(size_t) i;\n   dash_polygon=(PrimitiveInfo *) AcquireQuantumMemory((size_t)\n-    (2UL*number_vertices+1UL),sizeof(*dash_polygon));\n+    (2UL*(number_vertices+1UL)+1UL),sizeof(*dash_polygon));\n   if (dash_polygon == (PrimitiveInfo *) NULL)\n     return(MagickFalse);\n   clone_info=CloneDrawInfo((ImageInfo *) NULL,draw_info);"
+      },
+      "description": "MVG 虚线描边时 DrawDashPolygon 写入的点数超过 dash_polygon 的分配容量，造成堆越界写。",
+      "description_source": "reviewed",
+      "patch": {
+        "upstream_commit": "7a03766efc1f45cf13cbd435902d86c3f321368e",
+        "upstream_date": "2018-03-11",
+        "file": "patches/7a03766efc1f45cf13cbd435902d86c3f321368e.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "MagickCore/draw.c",
+            "functions": [
+              "DrawDashPolygon"
+            ],
+            "hunks": [
+              {
+                "old_start": 1520,
+                "old_lines": 7,
+                "new_start": 1520,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 1
+      },
+      "fix_summary": "DrawDashPolygon 的分配式由 2*V+1 改为 2*(V+1)+1，为每个虚线顶点多留 1 个槽位。",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42535088",
+      "format": "MVG",
+      "fuzz_target": "encoder_mvg_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Heap-buffer-overflow WRITE 4",
+        "cwe": "CWE-787",
+        "cwe_name": "Out-of-bounds Write"
+      },
+      "location": {
+        "file": "MagickCore/draw.c",
+        "line": 1597,
+        "function": "DrawDashPolygon",
+        "stack": [
+          "__asan_memcpy",
+          "DrawDashPolygon",
+          "DrawPrimitive"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/draw.c",
+        "function": "DrawDashPolygon",
+        "line": 1597,
+        "before": "    (2UL*number_vertices+1UL),sizeof(*dash_polygon));",
+        "after": "    (2UL*(number_vertices+2UL)+1UL),sizeof(*dash_polygon));",
+        "diff": "@@ -1512,7 +1512,7 @@ static MagickBooleanType DrawDashPolygon(const DrawInfo *draw_info,\n   for (i=0; primitive_info[i].primitive != UndefinedPrimitive; i++) ;\n   number_vertices=(size_t) i;\n   dash_polygon=(PrimitiveInfo *) AcquireQuantumMemory((size_t)\n-    (2UL*number_vertices+1UL),sizeof(*dash_polygon));\n+    (2UL*(number_vertices+2UL)+1UL),sizeof(*dash_polygon));\n   if (dash_polygon == (PrimitiveInfo *) NULL)\n     return(MagickFalse);\n   clone_info=CloneDrawInfo((ImageInfo *) NULL,draw_info);"
+      },
+      "description": "同一处 dash_polygon 容量仍不足（上一版只多留 1 个顶点），另一组 MVG 虚线参数再次越界写。",
+      "description_source": "reviewed",
+      "patch": {
+        "upstream_commit": "3c96caf391336735dd15331267694d52a6d3ecd1",
+        "upstream_date": "2018-03-13",
+        "file": "patches/resolved/3c96caf391336735dd15331267694d52a6d3ecd1.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "MagickCore/draw.c",
+            "functions": [
+              "DrawDashPolygon"
+            ],
+            "hunks": [
+              {
+                "old_start": 1512,
+                "old_lines": 7,
+                "new_start": 1512,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 1
+      },
+      "fix_summary": "分配式由 2*(V+1)+1 扩到 2*(V+2)+1，再多留 1 个顶点。",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42535688",
+      "format": "PDB",
+      "fuzz_target": "encoder_pdb_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "coders/pdb.c",
+        "line": 886,
+        "function": "WritePDBImage",
+        "stack": [
+          "WritePDBImage",
+          "WriteImage",
+          "WriteImages"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/pdb.c",
+        "function": "WritePDBImage",
+        "line": 886,
+        "before": "",
+        "after": "  (void) ResetMagickMemory(buffer,0,512*sizeof(*buffer));",
+        "diff": "@@ -854,6 +854,7 @@ static MagickBooleanType WritePDBImage(const ImageInfo *image_info,Image *image,\n         scanline=(unsigned char *) RelinquishMagickMemory(scanline);\n       ThrowWriterException(ResourceLimitError,\"MemoryAllocationFailed\");\n     }\n+  (void) ResetMagickMemory(buffer,0,512*sizeof(*buffer));\n   if (IssRGBCompatibleColorspace(image->colorspace) == MagickFalse)\n     (void) TransformImageColorspace(image,sRGBColorspace,exception);\n   /*"
+      },
+      "description": "`coders/pdb.c:854`（`WritePDBImage`）：写 PDB 头用的 512 字节 buffer 未初始化就逐字段填入并整块输出，未赋值的填充字节把未初始化内容写进文件（MSan 在 WritePDBImage:886 处报错）；修复先 `ResetMagickMemory(buffer,0,512*sizeof(*buffer))`。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "771e54d106ce5ff043e7812b4182f3c08a748001",
+        "upstream_date": "2018-03-16",
+        "file": "patches/resolved/771e54d106ce5ff043e7812b4182f3c08a748001.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "coders/pdb.c",
+            "functions": [
+              "ReadPDBImage",
+              "WritePDBImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 419,
+                "old_lines": 7,
+                "new_start": 419,
+                "new_lines": 7
+              },
+              {
+                "old_start": 854,
+                "old_lines": 6,
+                "new_start": 854,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 2,
+        "lines_removed": 1
+      },
+      "fix_summary": "ReadPDBImage：补齐缓冲区初始化/清零（+2/-1 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42535232",
+      "format": "RLE",
+      "fuzz_target": "encoder_rle_fuzzer",
+      "sanitizer": "msan",
+      "type": {
+        "crash_type": "Use-of-uninitialized-value",
+        "cwe": "CWE-457",
+        "cwe_name": "Use of Uninitialized Variable"
+      },
+      "location": {
+        "file": "MagickCore/string.c",
+        "line": 697,
+        "function": "ConstantString",
+        "stack": [
+          "ConstantString",
+          "SetImageProperty",
+          "ReadRLEImage"
+        ]
+      },
+      "code_snippet": {
+        "file": "coders/rle.c",
+        "function": "ReadRLEImage",
+        "line": 315,
+        "before": "            comment[length-1]='\\0';\n            (void) SetImageProperty(image,\"comment\",comment,exception);",
+        "after": "            if (count == (length-1))\n              {\n                comment[length-1]='\\0';\n                (void) SetImageProperty(image,\"comment\",comment,exception);\n              }",
+        "diff": "@@ -315,8 +315,11 @@ static Image *ReadRLEImage(const ImageInfo *image_info,ExceptionInfo *exception)\n             if (comment == (char *) NULL)\n               ThrowRLEException(ResourceLimitError,\"MemoryAllocationFailed\");\n             count=ReadBlob(image,length-1,(unsigned char *) comment);\n-            comment[length-1]='\\0';\n-            (void) SetImageProperty(image,\"comment\",comment,exception);\n+            if (count == (length-1))\n+              {\n+                comment[length-1]='\\0';\n+                (void) SetImageProperty(image,\"comment\",comment,exception);\n+              }\n             comment=DestroyString(comment);\n             if ((length & 0x01) == 0)\n               (void) ReadBlobByte(image);"
+      },
+      "description": "`coders/rle.c:315`（`ReadRLEImage`）：注释长度 length 直接取自文件，ReadBlob 读不满时仍写 `comment[length-1]='\\0'` 并 SetImageProperty，未初始化的注释内容被当作字符串使用（MSan 在 ConstantString 处报错）；修复只有读满 length-1 字节才写入属性。",
+      "description_source": "auto",
+      "patch": {
+        "upstream_commit": "73aad72d1d28170b38014168f523d0ee2941c21e",
+        "upstream_date": "2018-03-18",
+        "file": "patches/73aad72d1d28170b38014168f523d0ee2941c21e.patch",
+        "status": "upstream",
+        "files": [
+          {
+            "path": "coders/rle.c",
+            "functions": [
+              "ReadRLEImage"
+            ],
+            "hunks": [
+              {
+                "old_start": 315,
+                "old_lines": 8,
+                "new_start": 315,
+                "new_lines": 11
+              }
+            ]
+          }
+        ],
+        "lines_added": 5,
+        "lines_removed": 2
+      },
+      "fix_summary": "ReadRLEImage：调整相关实现（+5/-2 行）",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    },
+    {
+      "id": "42537011",
+      "format": "MVG",
+      "fuzz_target": "encoder_mvg_fuzzer",
+      "sanitizer": "asan",
+      "type": {
+        "crash_type": "Heap-buffer-overflow WRITE {*}",
+        "cwe": "CWE-787",
+        "cwe_name": "Out-of-bounds Write"
+      },
+      "location": {
+        "file": "MagickCore/draw.c",
+        "line": 1597,
+        "function": "DrawDashPolygon",
+        "stack": [
+          "__asan_memcpy",
+          "DrawDashPolygon",
+          "DrawPrimitive"
+        ]
+      },
+      "code_snippet": {
+        "file": "MagickCore/draw.c",
+        "function": "DrawDashPolygon",
+        "line": 1597,
+        "before": "    (2UL*number_vertices+1UL),sizeof(*dash_polygon));",
+        "after": "    (2UL*(number_vertices+3UL)+3UL),sizeof(*dash_polygon));",
+        "diff": "@@ -1512,7 +1512,7 @@ static MagickBooleanType DrawDashPolygon(const DrawInfo *draw_info,\n   for (i=0; primitive_info[i].primitive != UndefinedPrimitive; i++) ;\n   number_vertices=(size_t) i;\n   dash_polygon=(PrimitiveInfo *) AcquireQuantumMemory((size_t)\n-    (2UL*number_vertices+1UL),sizeof(*dash_polygon));\n+    (2UL*(number_vertices+3UL)+3UL),sizeof(*dash_polygon));\n   if (dash_polygon == (PrimitiveInfo *) NULL)\n     return(MagickFalse);\n   clone_info=CloneDrawInfo((ImageInfo *) NULL,draw_info);"
+      },
+      "description": "同一处 dash_polygon 分配第三次不足，MVG 虚线在更长顶点序列下越界写。",
+      "description_source": "reviewed",
+      "patch": {
+        "upstream_commit": "8239e79ee4c8cc34034838eefe4f34bab02c5fc7",
+        "upstream_date": "2018-03-20",
+        "file": "patches/resolved/8239e79ee4c8cc34034838eefe4f34bab02c5fc7.patch",
+        "status": "resolved",
+        "files": [
+          {
+            "path": "MagickCore/draw.c",
+            "functions": [
+              "DrawDashPolygon"
+            ],
+            "hunks": [
+              {
+                "old_start": 1512,
+                "old_lines": 7,
+                "new_start": 1512,
+                "new_lines": 7
+              }
+            ]
+          }
+        ],
+        "lines_added": 1,
+        "lines_removed": 1
+      },
+      "fix_summary": "分配式由 2*(V+3)+1 扩到 2*(V+3)+3，多留 1 个顶点并额外 3 个元素。",
+      "verified": {
+        "reproduced": true,
+        "fixed": true,
+        "combined": true,
+        "regression": "no sample"
+      },
+      "outcome": "included"
+    }
+  ]
+}

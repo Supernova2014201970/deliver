@@ -1,0 +1,17 @@
+diff --git a/coders/tim.c b/coders/tim.c
+index 1fe538919..ab7bb0888 100644
+--- a/coders/tim.c
++++ b/coders/tim.c
+@@ -252,6 +252,12 @@ static Image *ReadTIMImage(const ImageInfo *image_info,ExceptionInfo *exception)
+     */
+     image->columns=width;
+     image->rows=height;
++    status=SetImageExtent(image,image->columns,image->rows,exception);
++    if (status == MagickFalse)
++      return(DestroyImageList(image));
++    status=ResetImagePixels(image,exception);
++    if (status == MagickFalse)
++      return(DestroyImageList(image));
+     /*
+       Convert TIM raster image to pixel packets.
+     */

@@ -1,0 +1,14 @@
+diff --git a/coders/txt.c b/coders/txt.c
+index 34989ca3b..d8919228b 100644
+--- a/coders/txt.c
++++ b/coders/txt.c
+@@ -464,8 +464,8 @@ static Image *ReadTXTImage(const ImageInfo *image_info,ExceptionInfo *exception)
+     type=ParseCommandOption(MagickColorspaceOptions,MagickFalse,colorspace);
+     if (type < 0)
+       ThrowReaderException(CorruptImageError,"ImproperImageHeader");
+-    (void) SetImageBackgroundColor(image,exception);
+     (void) SetImageColorspace(image,(ColorspaceType) type,exception);
++    (void) SetImageBackgroundColor(image,exception);
+     GetPixelInfo(image,&pixel);
+     range=GetQuantumRange(image->depth);
+     for (y=0; y < (ssize_t) image->rows; y++)

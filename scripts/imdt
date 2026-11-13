@@ -1,0 +1,41 @@
+#!/bin/bash
+# imdt — the delivery command set for the ImageMagick ARVO dataset.
+#
+#   imdt build [vuln|fixed|all]                    plain build (default all)
+#   imdt build-san [TREE] [SAN]                    instrumented build (default all all)
+#   imdt verify-before [--no-build] [opts]         vuln: every case must crash
+#   imdt verify-after  [--no-build] [opts]         fixed: no case may crash
+#   imdt verify-all    [--no-build] [opts]         both trees
+#   imdt verify-one <localId>|--patch <sha> [opts] one patch, all cases
+#
+# TREE is vuln|fixed|all or a directory (a tree a repair tool has edited); SAN is
+# address|undefined|memory|all.  [opts] goes to verify.sh: --san, --expect,
+# --report.  verify-before/after build the tree first unless --no-build is given,
+# so they also work on a tree the tool just edited.
+set -uo pipefail
+here=$(cd "$(dirname "$0")" && pwd)
+. "$here/lib.sh"
+
+cmd=${1:-}; if [ $# -gt 0 ]; then shift; fi
+[ -n "$cmd" ] || die "usage: imdt build|build-san|verify-before|verify-after|verify-all|verify-one [...]"
+
+verify_tree() {   # <tree> <default report dir> [verify.sh opts...]
+  local tree=$1 def=$2 nobuild=0 a pass=()
+  shift 2
+  for a in "$@"; do case "$a" in --no-build) nobuild=1 ;; *) pass+=("$a") ;; esac; done
+  if [ "$nobuild" -eq 0 ]; then "$here/build-san.sh" "$tree" all || exit 1; fi
+  "$here/verify.sh" "$tree" --report "$def" ${pass[@]+"${pass[@]}"}
+}
+
+case "$cmd" in
+  build)         "$here/build.sh" "${1:-all}" ;;
+  build-san)     "$here/build-san.sh" "${1:-all}" "${2:-all}" ;;
+  verify-before) verify_tree vuln reports/before "$@" ;;
+  verify-after)  verify_tree fixed reports/after "$@" ;;
+  verify-all)    verify_tree vuln reports/before "$@"; a=$?
+                 verify_tree fixed reports/after "$@"; b=$?
+                 exit $(( a | b )) ;;
+  verify-one)    "$here/verify-one.sh" "$@" ;;
+  -h|--help)     sed -n '2,14p' "$0" ;;
+  *) die "unknown command '$cmd' (build|build-san|verify-before|verify-after|verify-all|verify-one)" ;;
+esac

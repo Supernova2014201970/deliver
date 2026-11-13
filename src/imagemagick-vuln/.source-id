@@ -1,0 +1,5 @@
+tree	imagemagick-vuln
+upstream	13ffeabe9abd6c262a8b6bfaeb1e145a420f8e3a
+commit	cac8ee0ead0871909046c560a2b0e7b2ac9bb19c
+tree_sha	a2e675ea85b01a951d0463c1994f2b2d475a54c6
+date	2018-01-16

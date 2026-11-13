@@ -1,0 +1,13 @@
+diff --git a/coders/pict.c b/coders/pict.c
+index 99d1d829c..98b73dc1b 100644
+--- a/coders/pict.c
++++ b/coders/pict.c
+@@ -927,6 +927,8 @@ static Image *ReadPICTImage(const ImageInfo *image_info,
+   status=SetImageExtent(image,image->columns,image->rows,exception);
+   if (status == MagickFalse)
+     return(DestroyImageList(image));
++  image->alpha_trait=BlendPixelTrait;
++  (void) SetImageBackgroundColor(image,exception);
+   /*
+     Interpret PICT opcodes.
+   */

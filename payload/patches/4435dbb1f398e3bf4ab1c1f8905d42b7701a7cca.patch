@@ -1,0 +1,12 @@
+diff --git a/coders/dcm.c b/coders/dcm.c
+index 29fa651f5..5f9cb02c7 100644
+--- a/coders/dcm.c
++++ b/coders/dcm.c
+@@ -3927,6 +3927,7 @@ static Image *ReadDCMImage(const ImageInfo *image_info,ExceptionInfo *exception)
+     if (status == MagickFalse)
+       break;
+     image->colorspace=RGBColorspace;
++    (void) SetImageBackgroundColor(image,exception);
+     if ((image->colormap == (PixelInfo *) NULL) &&
+         (info.samples_per_pixel == 1))
+       {
